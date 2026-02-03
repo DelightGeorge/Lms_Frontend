@@ -18,6 +18,8 @@ import Categories from "./pages/Categories/Categories.jsx";
 import Development from "./pages/Categories/Development.jsx";
 import Marketing from "./pages/Categories/Marketing.jsx";
 import Design from "./pages/Categories/Design.jsx";
+import Cart from "./pages/Cart.jsx";
+import Notifications from "./pages/Notifications.jsx";
 
 const router = createBrowserRouter([
   {
@@ -66,6 +68,8 @@ const router = createBrowserRouter([
           { path: "marketing", element: <Marketing /> },
         ],
       },
+      { path: "/cart", element: <Cart /> },
+      { path: "/notifications", element: <Notifications /> },
     ],
   },
 ]);
