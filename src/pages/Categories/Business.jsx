@@ -1,8 +1,9 @@
 // pages/Categories/Development.jsx
 import React from "react";
 import Layout from "../../shared/Layout/Layout";
-import CourseCard from "../../components/CourseCard";
+
 import { CheckCircle } from "lucide-react";
+import CourseCard from "../../Components/CourseCard";
 
 const courses = [
   { title: "React for Beginners", instructor: "Jane Doe", rating: 4.8, reviews: "1.2k", price: 19.99, image: "https://images.unsplash.com/photo-1581090700227-6a72b1b5e6a1?auto=format&fit=crop&w=400&q=80" },
