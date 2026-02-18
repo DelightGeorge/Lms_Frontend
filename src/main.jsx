@@ -3,8 +3,9 @@ import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./index.css";
 
-import App from "./App.jsx";
 
+
+import App from "./App.jsx";
 import Home from "./pages/Home.jsx";
 import Auth from "./pages/Auth.jsx";
 import CourseList from "./pages/Courses/CourseList.jsx";
@@ -20,47 +21,26 @@ import Marketing from "./pages/Categories/Marketing.jsx";
 import Design from "./pages/Categories/Design.jsx";
 import Cart from "./pages/Cart.jsx";
 import Notifications from "./pages/Notifications.jsx";
+import VerifyEmail from "./pages/VerifyEmail.jsx";
+import { AuthProvider } from "./Context/AuthContext.jsx";
 
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <App />, // layout (Navbar + Footer)
+    element: <App />,
     children: [
-      {
-        index: true,
-        element: <Home />,
-      },
-      {
-        path: "auth",
-        element: <Auth />,
-      },
-      {
-        path: "courses",
-        element: <CourseList />,
-      },
-      {
-        path: "courses/:id",
-        element: <CourseDetail />,
-      },
-      {
-        path: "lessonplayer",
-        element: <LessonPlayer />,
-      },
-      {
-        path: "StudentDashboard",
-        element: <StudentDashboard />,
-      },
-      {
-        path: "admindashboard",
-        element: <AdminDashboard />,
-      },
-      {
-        path: "instructordashboard",
-        element: <InstructorDashboard />,
-      },
+      { index: true, element: <Home /> },
+      { path: "auth", element: <Auth /> },
+      { path: "/verify-email", element: <VerifyEmail /> },
+      { path: "courses", element: <CourseList /> },
+      { path: "courses/:id", element: <CourseDetail /> },
+      { path: "lessonplayer", element: <LessonPlayer /> },
+      { path: "StudentDashboard", element: <StudentDashboard /> },
+      { path: "admindashboard", element: <AdminDashboard /> },
+      { path: "instructordashboard", element: <InstructorDashboard /> },
       {
         path: "categories/",
-        element: <Categories />, // main categories page
+        element: <Categories />,
         children: [
           { path: "development", element: <Development /> },
           { path: "business", element: <Business /> },
@@ -76,6 +56,8 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <RouterProvider router={router} />
-  </StrictMode>,
+    <AuthProvider>  {/* ← wraps RouterProvider so context works everywhere */}
+      <RouterProvider router={router} />
+    </AuthProvider>
+  </StrictMode>
 );
