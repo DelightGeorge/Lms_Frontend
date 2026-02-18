@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: import.meta.env.VITE_BACKEND_URL + "/api", // ← changed from VITE_API_URL to VITE_BACKEND_URL
+  baseURL: import.meta.env.VITE_API_URL, // ← already has /api in the Vercel value
   withCredentials: true,
 });
 
@@ -12,3 +12,4 @@ API.interceptors.request.use((config) => {
 });
 
 export default API;
+
