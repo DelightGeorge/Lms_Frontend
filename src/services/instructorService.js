@@ -10,7 +10,7 @@ API.interceptors.request.use((config) => {
   return config;
 });
 
-export const getInstructorCourses = () => API.get("/courses");
+export const getInstructorCourses = () => API.get("/courses/instructor/my-courses");
 export const createCourse = (data) => API.post("/courses", data);
 export const submitCourse = (courseId) => API.patch(`/courses/${courseId}/submit`);
 export const deleteCourse = (courseId) => API.delete(`/courses/${courseId}`);
