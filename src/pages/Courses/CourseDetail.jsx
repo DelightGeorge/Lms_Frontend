@@ -4,6 +4,7 @@ import Layout from "../../shared/Layout/Layout";
 import {
   Star, ArrowLeft, BookOpen, Clock, Users, CheckCircle,
   Play, Globe, Award, Loader2, AlertCircle, ShoppingCart,
+  X, FileText, Video, ChevronRight, ChevronDown,
 } from "lucide-react";
 import { getCourseById } from "../../services/courseService";
 import { useAuth } from "../../Context/AuthContext";
@@ -15,6 +16,159 @@ const placeholderImgs = [
   "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&w=800&q=80",
 ];
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+/** Turn any YouTube / Vimeo / raw video URL into an embeddable src */
+const getEmbedUrl = (url = "") => {
+  if (!url) return null;
+
+  // YouTube
+  const ytMatch = url.match(
+    /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/
+  );
+  if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&rel=0`;
+
+  // Vimeo
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}?autoplay=1`;
+
+  // Raw video file (mp4, webm, etc.) — return as-is for <video> tag
+  if (/\.(mp4|webm|ogg|mov)(\?|$)/i.test(url)) return null; // handled separately
+
+  // Cloudinary video
+  if (url.includes("cloudinary.com")) return null; // handled separately
+
+  return null; // fallback: use <video>
+};
+
+const isRawVideo = (url = "") =>
+  /\.(mp4|webm|ogg|mov)(\?|$)/i.test(url) || url.includes("cloudinary.com");
+
+// ── Lesson Viewer Modal ───────────────────────────────────────────────────────
+
+const LessonViewer = ({ lesson, onClose, onPrev, onNext, hasPrev, hasNext }) => {
+  if (!lesson) return null;
+
+  const embedUrl = lesson.type === "VIDEO" ? getEmbedUrl(lesson.videoUrl || lesson.content) : null;
+  const rawVideo = lesson.type === "VIDEO" && isRawVideo(lesson.videoUrl || lesson.content);
+  const videoSrc = lesson.videoUrl || lesson.content;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+            <div className="flex items-center gap-3 min-w-0">
+              {lesson.type === "VIDEO" ? (
+                <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center shrink-0">
+                  <Video size={15} className="text-violet-600" />
+                </div>
+              ) : (
+                <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+                  <FileText size={15} className="text-blue-600" />
+                </div>
+              )}
+              <h2 className="font-black text-slate-900 truncate">{lesson.title}</h2>
+            </div>
+            <button
+              onClick={onClose}
+              className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition shrink-0 ml-3"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto">
+            {lesson.type === "VIDEO" ? (
+              <div className="bg-black">
+                {embedUrl ? (
+                  /* YouTube / Vimeo embed */
+                  <div className="relative" style={{ paddingBottom: "56.25%" }}>
+                    <iframe
+                      src={embedUrl}
+                      title={lesson.title}
+                      className="absolute inset-0 w-full h-full"
+                      frameBorder="0"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                ) : rawVideo ? (
+                  /* Native video player */
+                  <video
+                    src={videoSrc}
+                    controls
+                    autoPlay
+                    className="w-full max-h-[60vh]"
+                    style={{ background: "#000" }}
+                  >
+                    Your browser does not support the video tag.
+                  </video>
+                ) : (
+                  /* Fallback: open in new tab */
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <Play size={48} className="text-white/30" />
+                    <p className="text-white/60 text-sm">Cannot embed this video directly.</p>
+                    <a
+                      href={videoSrc}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold transition"
+                    >
+                      Open Video ↗
+                    </a>
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* TEXT lesson */
+              <div className="p-6 sm:p-8">
+                <div
+                  className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-700 whitespace-pre-wrap"
+                >
+                  {lesson.content || <span className="text-slate-400 italic">No content available.</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer nav */}
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0 bg-slate-50">
+            <button
+              onClick={onPrev}
+              disabled={!hasPrev}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-white border border-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              ← Previous
+            </button>
+            <span className="text-xs text-slate-400 font-medium">
+              {lesson.type} lesson
+            </span>
+            <button
+              onClick={onNext}
+              disabled={!hasNext}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-white border border-slate-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
+
 const CourseDetail = () => {
   const { id }       = useParams();
   const { user }     = useAuth();
@@ -22,6 +176,9 @@ const CourseDetail = () => {
   const [course,     setCourse]   = useState(null);
   const [loading,    setLoading]  = useState(true);
   const [error,      setError]    = useState("");
+
+  // Lesson viewer state
+  const [activeLessonIdx, setActiveLessonIdx] = useState(null);
 
   useEffect(() => {
     getCourseById(id)
@@ -34,6 +191,13 @@ const CourseDetail = () => {
     if (!user) { navigate("/auth"); return; }
     navigate("/cart");
   };
+
+  const openLesson = (idx) => setActiveLessonIdx(idx);
+  const closeLesson = () => setActiveLessonIdx(null);
+  const prevLesson = () => setActiveLessonIdx((i) => Math.max(0, i - 1));
+  const nextLesson = () => setActiveLessonIdx((i) => Math.min((course?.lessons?.length ?? 1) - 1, i + 1));
+
+  const activeLesson = activeLessonIdx !== null ? course?.lessons?.[activeLessonIdx] : null;
 
   if (loading) return (
     <Layout>
@@ -60,6 +224,18 @@ const CourseDetail = () => {
   return (
     <Layout>
       <div className="min-h-screen bg-slate-50">
+        {/* Lesson Viewer Modal */}
+        {activeLesson && (
+          <LessonViewer
+            lesson={activeLesson}
+            onClose={closeLesson}
+            onPrev={prevLesson}
+            onNext={nextLesson}
+            hasPrev={activeLessonIdx > 0}
+            hasNext={activeLessonIdx < (course.lessons?.length ?? 0) - 1}
+          />
+        )}
+
         {/* Hero banner */}
         <div className="bg-gradient-to-r from-slate-900 to-blue-950 text-white py-14 px-4">
           <div className="max-w-6xl mx-auto">
@@ -186,7 +362,7 @@ const CourseDetail = () => {
                 )}
               </section>
 
-              {/* Lessons */}
+              {/* ── Lessons (clickable) ── */}
               {course.lessons?.length > 0 && (
                 <section className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
                   <h2 className="text-xl font-extrabold text-slate-900 mb-5">
@@ -197,15 +373,35 @@ const CourseDetail = () => {
                   </h2>
                   <div className="space-y-2">
                     {course.lessons.map((lesson, idx) => (
-                      <div key={lesson.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 transition">
-                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-xs font-black shrink-0">
+                      <button
+                        key={lesson.id}
+                        onClick={() => openLesson(idx)}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-blue-50 transition group text-left"
+                      >
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 group-hover:bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-black shrink-0 transition">
                           {idx + 1}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700 truncate">{lesson.title}</p>
+                          <p className="text-sm font-semibold text-slate-700 truncate group-hover:text-blue-700 transition">
+                            {lesson.title}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {lesson.type === "VIDEO" ? "Video lesson" : "Text lesson"}
+                          </p>
                         </div>
-                        <Play size={14} className="text-slate-300 shrink-0" />
-                      </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {lesson.type === "VIDEO" ? (
+                            <div className="w-7 h-7 rounded-full bg-violet-100 group-hover:bg-violet-200 flex items-center justify-center transition">
+                              <Play size={12} className="text-violet-600 ml-0.5" />
+                            </div>
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-blue-100 group-hover:bg-blue-200 flex items-center justify-center transition">
+                              <FileText size={12} className="text-blue-600" />
+                            </div>
+                          )}
+                          <ChevronRight size={14} className="text-slate-300 group-hover:text-blue-400 transition" />
+                        </div>
+                      </button>
                     ))}
                   </div>
                 </section>
