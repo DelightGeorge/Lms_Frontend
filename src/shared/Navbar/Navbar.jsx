@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
 import {
   Search, ShoppingCart, Bell, ChevronDown, Menu, X,
-  Sparkles, LogOut, User, LayoutDashboard, BookOpen,
-  GraduationCap, ShieldCheck, Home,
+  LogOut, User, LayoutDashboard, BookOpen,
+  GraduationCap, ShieldCheck, Home, TrendingUp,
+  Flame, Zap, Star,
 } from "lucide-react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
@@ -10,59 +11,74 @@ import API from "../../services/api";
 
 const Navbar = () => {
   const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const navigate  = useNavigate();
+  const location  = useLocation();
 
-  const [isScrolled,   setIsScrolled]   = useState(false);
-  const [mobileOpen,   setMobileOpen]   = useState(false);
-  const [profileOpen,  setProfileOpen]  = useState(false);
-  const [cartCount,    setCartCount]    = useState(0);
-  const [notifCount,   setNotifCount]   = useState(0);
-  const [searchQuery,  setSearchQuery]  = useState("");
+  const [isScrolled,  setIsScrolled]  = useState(false);
+  const [mobileOpen,  setMobileOpen]  = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [cartCount,   setCartCount]   = useState(0);
+  const [notifCount,  setNotifCount]  = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchOpen,  setSearchOpen]  = useState(false);
 
-  const categories = ["Development", "Business", "Design", "Marketing"];
+  const categories = [
+    { name: "Development", emoji: "💻" },
+    { name: "Business",    emoji: "📈" },
+    { name: "Design",      emoji: "🎨" },
+    { name: "Marketing",   emoji: "📣" },
+  ];
 
-  // ── scroll listener ───────────────────────────────────────
+  // ── Scroll ────────────────────────────────────────────────
   useEffect(() => {
-    const onScroll = () => setIsScrolled(window.scrollY > 10);
-    window.addEventListener("scroll", onScroll);
-    return () => window.removeEventListener("scroll", onScroll);
+    const fn = () => setIsScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", fn);
+    return () => window.removeEventListener("scroll", fn);
   }, []);
 
-  // ── close mobile on resize ────────────────────────────────
+  // ── Resize ───────────────────────────────────────────────
   useEffect(() => {
-    const onResize = () => { if (window.innerWidth >= 1024) setMobileOpen(false); };
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    const fn = () => { if (window.innerWidth >= 1024) setMobileOpen(false); };
+    window.addEventListener("resize", fn);
+    return () => window.removeEventListener("resize", fn);
   }, []);
 
-  // ── close dropdown on outside click ──────────────────────
+  // ── Outside click closes profile ──────────────────────────
   useEffect(() => {
-    const onClick = (e) => { if (!e.target.closest("#profile-menu")) setProfileOpen(false); };
-    document.addEventListener("mousedown", onClick);
-    return () => document.removeEventListener("mousedown", onClick);
+    const fn = (e) => { if (!e.target.closest("#profile-menu")) setProfileOpen(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
   }, []);
 
-  // ── close mobile menu on route change ────────────────────
-  useEffect(() => { setMobileOpen(false); setProfileOpen(false); }, [location.pathname]);
+  // ── Route change closes menus ─────────────────────────────
+  useEffect(() => {
+    setMobileOpen(false);
+    setProfileOpen(false);
+    setSearchOpen(false);
+  }, [location.pathname]);
 
-  // ── fetch cart count (students only) ─────────────────────
+  // ── Cart count (students only, re-fetch on route change) ──
   useEffect(() => {
     if (!user || user.role !== "STUDENT") { setCartCount(0); return; }
     API.get("/cart")
       .then((r) => setCartCount(r.data?.items?.length || 0))
       .catch(() => setCartCount(0));
-  }, [user, location.pathname]); // re-fetch on route change so cart stays fresh
+  }, [user, location.pathname]);
 
-  // ── fetch notification count ──────────────────────────────
+  // ── Unread count — uses efficient /unread endpoint ────────
   useEffect(() => {
     if (!user) { setNotifCount(0); return; }
-    API.get("/notifications")
-      .then((r) => {
-        const notifs = Array.isArray(r.data) ? r.data : r.data?.notifications || [];
-        setNotifCount(notifs.filter((n) => !n.isRead).length);
-      })
-      .catch(() => setNotifCount(0));
+    API.get("/notifications/unread")
+      .then((r) => setNotifCount(r.data?.count || 0))
+      .catch(() => {
+        // fallback: fetch all and count manually
+        API.get("/notifications")
+          .then((r) => {
+            const arr = Array.isArray(r.data) ? r.data : [];
+            setNotifCount(arr.filter((n) => !n.isRead).length);
+          })
+          .catch(() => setNotifCount(0));
+      });
   }, [user, location.pathname]);
 
   const handleLogout = () => {
@@ -77,8 +93,33 @@ const Navbar = () => {
     if (searchQuery.trim()) {
       navigate(`/courses?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchQuery("");
+      setSearchOpen(false);
       setMobileOpen(false);
     }
+  };
+
+  // ── Role config ───────────────────────────────────────────
+  const roleBadge = {
+    ADMIN:      "bg-red-100 text-red-600 border border-red-200",
+    INSTRUCTOR: "bg-blue-100 text-blue-600 border border-blue-200",
+    STUDENT:    "bg-emerald-100 text-emerald-600 border border-emerald-200",
+  }[user?.role] || "bg-slate-100 text-slate-500";
+
+  const dashboardLink = {
+    ADMIN:      { to: "/admindashboard",      icon: <ShieldCheck size={14} />,     label: "Admin Panel", color: "text-red-600 hover:bg-red-50"     },
+    INSTRUCTOR: { to: "/instructordashboard", icon: <LayoutDashboard size={14} />, label: "Dashboard",   color: "text-slate-700 hover:bg-slate-100" },
+    STUDENT:    { to: "/StudentDashboard",    icon: <GraduationCap size={14} />,   label: "My Learning", color: "text-slate-700 hover:bg-slate-100" },
+  }[user?.role];
+
+  const getDropdownLinks = () => {
+    const base = [{ to: "/profile", icon: <User size={15} />, label: "My Profile" }];
+    if (user?.role === "ADMIN")      base.unshift({ to: "/admindashboard",      icon: <ShieldCheck size={15} />,    label: "Admin Panel" });
+    if (user?.role === "INSTRUCTOR") base.unshift(
+      { to: "/instructordashboard", icon: <LayoutDashboard size={15} />, label: "Dashboard"  },
+      { to: "/my-courses",          icon: <BookOpen size={15} />,        label: "My Courses" }
+    );
+    if (user?.role === "STUDENT")    base.unshift({ to: "/StudentDashboard", icon: <GraduationCap size={15} />, label: "My Learning" });
+    return base;
   };
 
   // ── Avatar ────────────────────────────────────────────────
@@ -88,65 +129,68 @@ const Navbar = () => {
       <img src={user.avatarUrl} alt={user.fullName}
         className={`${dim} rounded-full object-cover ring-2 ring-blue-500 ring-offset-1`} />
     ) : (
-      <div className={`${dim} rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-black shadow-md`}>
+      <div className={`${dim} rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-black shadow-md shrink-0`}>
         {user?.fullName?.charAt(0).toUpperCase()}
       </div>
     );
   };
 
-  // ── Role badge ────────────────────────────────────────────
-  const roleBadge = {
-    ADMIN:      "bg-red-100 text-red-600",
-    INSTRUCTOR: "bg-blue-100 text-blue-600",
-    STUDENT:    "bg-emerald-100 text-emerald-600",
-  }[user?.role] || "bg-slate-100 text-slate-600";
-
-  // ── Dropdown links by role ────────────────────────────────
-  const getDropdownLinks = () => {
-    const base = [{ to: "/profile", icon: <User size={15} />, label: "My Profile" }];
-    if (user?.role === "ADMIN")      base.unshift({ to: "/admindashboard",      icon: <ShieldCheck size={15} />,   label: "Admin Panel"    });
-    if (user?.role === "INSTRUCTOR") base.unshift({ to: "/instructordashboard", icon: <LayoutDashboard size={15} />, label: "Dashboard"    },
-                                                  { to: "/my-courses",          icon: <BookOpen size={15} />,       label: "My Courses"   });
-    if (user?.role === "STUDENT")    base.unshift({ to: "/StudentDashboard",    icon: <GraduationCap size={15} />,  label: "My Learning"  });
-    return base;
-  };
-
-  // ── Cart badge ────────────────────────────────────────────
+  // ── Cart icon ─────────────────────────────────────────────
   const CartIcon = ({ mobile = false }) => (
-    <Link to="/cart" className={`relative ${mobile ? "flex items-center gap-2 py-2 text-sm font-medium text-slate-700" : "p-2 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-blue-600"}`}>
-      <ShoppingCart size={mobile ? 18 : 20} />
+    <Link to="/cart"
+      className={`relative flex items-center gap-2 transition
+        ${mobile
+          ? "py-3 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          : "p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-blue-600"
+        }`}>
+      <ShoppingCart size={mobile ? 17 : 19} />
       {cartCount > 0 && (
-        <span className={`${mobile ? "ml-1" : "absolute -top-1 -right-1"} bg-blue-600 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center`}>
+        <span className={`bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center
+          ${mobile ? "w-4 h-4" : "absolute -top-0.5 -right-0.5 w-4 h-4"}`}>
           {cartCount > 9 ? "9+" : cartCount}
         </span>
       )}
-      {mobile && <span>Cart {cartCount > 0 && `(${cartCount})`}</span>}
+      {mobile && <span>Cart {cartCount > 0 && <span className="text-blue-600">({cartCount})</span>}</span>}
     </Link>
   );
 
-  // ── Notif badge ───────────────────────────────────────────
+  // ── Notif icon ────────────────────────────────────────────
   const NotifIcon = ({ mobile = false }) => (
-    <Link to="/notifications" className={`relative ${mobile ? "flex items-center gap-2 py-2 text-sm font-medium text-slate-700" : "p-2 rounded-xl hover:bg-slate-100 transition text-slate-600 hover:text-blue-600"}`}>
-      <Bell size={mobile ? 18 : 20} />
+    <Link to="/notifications"
+      className={`relative flex items-center gap-2 transition
+        ${mobile
+          ? "py-3 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
+          : "p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-blue-600"
+        }`}>
+      <Bell size={mobile ? 17 : 19} />
       {notifCount > 0 && (
-        <span className={`${mobile ? "ml-1" : "absolute -top-1 -right-1"} bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center`}>
+        <span className={`bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center
+          ${mobile ? "w-4 h-4" : "absolute -top-0.5 -right-0.5 w-4 h-4"}`}>
           {notifCount > 9 ? "9+" : notifCount}
         </span>
       )}
-      {mobile && <span>Notifications {notifCount > 0 && `(${notifCount})`}</span>}
+      {mobile && (
+        <span>
+          Notifications
+          {notifCount > 0 && <span className="text-red-500 ml-1">({notifCount})</span>}
+        </span>
+      )}
     </Link>
   );
 
   return (
     <>
+      {/* ── Desktop / top nav ────────────────────────────────── */}
       <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-white/95 backdrop-blur-lg shadow-lg shadow-slate-200/50 py-2" : "bg-white py-3"
+        isScrolled
+          ? "bg-white/96 backdrop-blur-xl shadow-lg shadow-black/5 py-2"
+          : "bg-white border-b border-slate-100/80 py-3"
       }`}>
-        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-4">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
 
-          {/* ── Logo ── */}
-          <Link to="/" className="group flex items-center gap-1.5 shrink-0">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg group-hover:rotate-12 transition-transform shadow-md shadow-blue-600/30">
+          {/* Logo */}
+          <Link to="/" className="group flex items-center gap-2 shrink-0">
+            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg group-hover:rotate-12 transition-transform duration-300 shadow-md shadow-blue-600/30">
               L
             </div>
             <span className="text-lg font-black tracking-tight text-slate-900 hidden sm:block">
@@ -154,100 +198,86 @@ const Navbar = () => {
             </span>
           </Link>
 
-          {/* ── Desktop center: categories + search ── */}
-          <div className="hidden lg:flex items-center gap-4 flex-1 max-w-2xl">
-            {/* Categories dropdown */}
+          {/* Desktop: categories + search */}
+          <div className="hidden lg:flex items-center gap-3 flex-1 max-w-2xl mx-4">
             <div className="relative group shrink-0">
-              <button className="flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-blue-600 py-2 px-1 transition">
-                Categories <ChevronDown size={13} className="group-hover:rotate-180 transition-transform duration-200" />
+              <button className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-blue-600 py-2 px-2 rounded-lg hover:bg-slate-50 transition">
+                Browse
+                <ChevronDown size={13} className="group-hover:rotate-180 transition-transform duration-200" />
               </button>
-              <div className="absolute top-full left-0 w-56 bg-white shadow-2xl rounded-2xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-2 group-hover:translate-y-0 p-2 mt-1">
+              <div className="absolute top-full left-0 w-52 bg-white shadow-2xl rounded-2xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 p-2 mt-2">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2.5 pt-1 pb-2">Categories</p>
                 {categories.map((cat) => (
-                  <NavLink key={cat} to={`/categories/${cat.toLowerCase()}`}
-                    className="flex items-center gap-2 p-2.5 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-600 rounded-xl font-medium transition">
-                    {cat}
+                  <NavLink key={cat.name} to={`/categories/${cat.name.toLowerCase()}`}
+                    className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl font-medium transition">
+                    <span>{cat.emoji}</span> {cat.name}
                   </NavLink>
                 ))}
-                <div className="border-t border-slate-100 mt-1 pt-1">
-                  <NavLink to="/categories"
-                    className="flex items-center gap-2 p-2.5 text-sm text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition">
-                    View All →
+                <div className="border-t border-slate-100 mt-1.5 pt-1.5">
+                  <NavLink to="/courses"
+                    className="flex items-center gap-2 px-2.5 py-2 text-sm text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition">
+                    <Zap size={13} /> All Courses
                   </NavLink>
                 </div>
               </div>
             </div>
 
-            {/* Search */}
             <form onSubmit={handleSearch} className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={15} />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search courses, topics, instructors..."
-                className="w-full bg-slate-100 hover:bg-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-10 pr-4 text-sm outline-none transition-all"
+                className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-4 text-sm outline-none transition-all placeholder:text-slate-400"
               />
             </form>
           </div>
 
-          {/* ── Desktop right ── */}
-          <div className="hidden lg:flex items-center gap-1">
+          {/* Desktop: right */}
+          <div className="hidden lg:flex items-center gap-0.5">
             {user ? (
               <>
-                {/* Greeting */}
-                <span className="text-sm text-slate-500 mr-2 hidden xl:block">
+                <span className="text-sm text-slate-400 mr-2 hidden xl:block">
                   Hi, <span className="font-bold text-slate-800">{user.fullName?.split(" ")[0]}</span> 👋
                 </span>
 
-                {/* Role-based dashboard link */}
-                {user.role === "ADMIN" && (
-                  <NavLink to="/admindashboard"
-                    className="flex items-center gap-1.5 text-sm font-bold text-red-600 hover:text-red-700 px-3 py-2 rounded-xl hover:bg-red-50 transition mr-1">
-                    <ShieldCheck size={15} /> Admin
-                  </NavLink>
-                )}
-                {user.role === "INSTRUCTOR" && (
-                  <NavLink to="/instructordashboard"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition mr-1">
-                    <LayoutDashboard size={15} /> Dashboard
-                  </NavLink>
-                )}
-                {user.role === "STUDENT" && (
-                  <NavLink to="/StudentDashboard"
-                    className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition mr-1">
-                    <GraduationCap size={15} /> My Learning
+                {dashboardLink && (
+                  <NavLink to={dashboardLink.to}
+                    className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition mr-1 ${dashboardLink.color}`}>
+                    {dashboardLink.icon}
+                    <span className="hidden xl:inline">{dashboardLink.label}</span>
                   </NavLink>
                 )}
 
-                {/* Cart — always visible */}
                 <CartIcon />
-
-                {/* Notifications */}
                 <NotifIcon />
 
-                {/* Profile dropdown */}
                 <div id="profile-menu" className="relative ml-1">
                   <button onClick={() => setProfileOpen(!profileOpen)}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition cursor-pointer">
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition">
                     <Avatar />
                     <div className="hidden xl:block text-left">
-                      <p className="text-xs font-black text-slate-800 leading-tight max-w-[100px] truncate">{user.fullName?.split(" ")[0]}</p>
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${roleBadge}`}>{user.role}</span>
+                      <p className="text-xs font-black text-slate-800 leading-none mb-0.5 max-w-[90px] truncate">
+                        {user.fullName?.split(" ")[0]}
+                      </p>
+                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${roleBadge}`}>
+                        {user.role}
+                      </span>
                     </div>
-                    <ChevronDown size={13} className={`text-slate-400 transition-transform ${profileOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
                   </button>
 
                   {profileOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                      {/* User info */}
-                      <div className="px-3 py-3 mb-1 bg-slate-50 rounded-xl">
+                    <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50">
+                      <div className="px-3 py-3 mb-1.5 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl border border-slate-100">
                         <div className="flex items-center gap-3">
                           <Avatar size="sm" />
-                          <div className="min-w-0">
-                            <p className="font-black text-sm text-slate-800 truncate">{user.fullName}</p>
-                            <p className="text-xs text-slate-400 truncate">{user.email}</p>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-black text-sm text-slate-900 truncate">{user.fullName}</p>
+                            <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
                           </div>
                         </div>
-                        <span className={`text-[10px] font-black px-2 py-0.5 rounded-full mt-2 inline-block ${roleBadge}`}>
+                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full mt-2.5 inline-block ${roleBadge}`}>
                           {user.role}
                         </span>
                       </div>
@@ -255,15 +285,16 @@ const Navbar = () => {
                       <div className="space-y-0.5">
                         {getDropdownLinks().map(({ to, icon, label }) => (
                           <NavLink key={to} to={to} onClick={() => setProfileOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-xl transition font-medium">
-                            <span className="text-slate-400">{icon}</span> {label}
+                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition font-medium">
+                            <span className="text-slate-400">{icon}</span>
+                            {label}
                           </NavLink>
                         ))}
                       </div>
 
-                      <div className="border-t border-slate-100 mt-1 pt-1">
+                      <div className="border-t border-slate-100 mt-1.5 pt-1.5">
                         <button onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition font-medium">
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition font-semibold">
                           <LogOut size={15} /> Sign Out
                         </button>
                       </div>
@@ -273,121 +304,188 @@ const Navbar = () => {
               </>
             ) : (
               <>
-                <NavLink to="/instructordashboard"
-                  className="flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition">
-                  Teach <Sparkles size={13} className="text-blue-500" />
-                </NavLink>
-
-                {/* Cart visible for guests too */}
+                <Link to="/courses"
+                  className="text-sm font-semibold text-slate-600 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition">
+                  Explore
+                </Link>
                 <CartIcon />
                 <NotifIcon />
-
-                <NavLink to="/auth" className="text-sm font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition text-slate-700">
+                <NavLink to="/auth"
+                  className="text-sm font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition text-slate-700">
                   Log in
                 </NavLink>
                 <NavLink to="/auth"
-                  className="px-4 py-2 bg-slate-900 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition shadow-md">
+                  className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-bold text-sm transition shadow-md ml-1">
                   Join Free
                 </NavLink>
               </>
             )}
           </div>
 
-          {/* ── Mobile right: cart + hamburger ── */}
-          <div className="flex lg:hidden items-center gap-1">
+          {/* Mobile: search toggle + cart + notif + hamburger */}
+          <div className="flex lg:hidden items-center gap-0.5">
+            <button onClick={() => setSearchOpen(!searchOpen)}
+              className="p-2.5 rounded-xl hover:bg-slate-100 transition text-slate-500">
+              {searchOpen ? <X size={19} /> : <Search size={19} />}
+            </button>
             <CartIcon />
             <NotifIcon />
-            <button className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition"
+            <button
+              className="p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition ml-0.5"
               onClick={() => setMobileOpen(!mobileOpen)}>
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
+          </div>
+        </div>
+
+        {/* Mobile search bar — slides down under navbar */}
+        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${searchOpen ? "max-h-20 opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className="px-4 pb-3 pt-2 border-t border-slate-100">
+            <form onSubmit={handleSearch} className="relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              <input
+                autoFocus={searchOpen}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search courses, topics..."
+                className="w-full bg-slate-100 rounded-xl py-3 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+              />
+            </form>
           </div>
         </div>
       </nav>
 
-      {/* ── Mobile overlay ── */}
+      {/* Mobile overlay */}
       <div onClick={() => setMobileOpen(false)}
         className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden ${
           mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`} />
 
-      {/* ── Mobile menu ── */}
-      <div className={`fixed top-[60px] left-0 right-0 bg-white z-50 shadow-2xl transition-all duration-300 lg:hidden overflow-y-auto max-h-[85vh] ${
-        mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-4 opacity-0 pointer-events-none"
+      {/* ── Mobile slide-down menu ────────────────────────────── */}
+      <div className={`fixed top-[57px] left-0 right-0 bg-white z-50 shadow-2xl transition-all duration-300 lg:hidden overflow-y-auto max-h-[90vh] ${
+        mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0 pointer-events-none"
       }`}>
-        <div className="px-5 py-5 space-y-5">
 
-          {/* Greeting banner (logged in) */}
-          {user && (
-            <div className="flex items-center gap-3 bg-blue-50 rounded-2xl p-4">
+        {/* User banner OR guest CTA */}
+        <div className="px-4 pt-4 pb-3">
+          {user ? (
+            <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 text-white shadow-lg shadow-blue-600/20">
               <Avatar />
-              <div className="min-w-0">
-                <p className="font-black text-slate-800 text-sm">Hi, {user.fullName?.split(" ")[0]}! 👋</p>
-                <span className={`text-[10px] font-black px-2 py-0.5 rounded-full ${roleBadge}`}>{user.role}</span>
+              <div className="min-w-0 flex-1">
+                <p className="font-black text-sm truncate">{user.fullName}</p>
+                <p className="text-blue-200 text-xs truncate">{user.email}</p>
               </div>
+              <span className="text-[9px] font-black bg-white/20 text-white px-2 py-1 rounded-full border border-white/30 shrink-0">
+                {user.role}
+              </span>
             </div>
-          )}
-
-          {/* Mobile search */}
-          <form onSubmit={handleSearch} className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search courses..."
-              className="w-full bg-slate-100 rounded-xl py-3 pl-10 pr-4 text-sm outline-none" />
-          </form>
-
-          {/* Categories */}
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Categories</p>
-            <div className="grid grid-cols-2 gap-2">
-              {categories.map((cat) => (
-                <NavLink key={cat} to={`/categories/${cat.toLowerCase()}`}
-                  className="block py-2.5 px-3 font-semibold text-sm text-slate-700 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition">
-                  {cat}
-                </NavLink>
-              ))}
-            </div>
-          </div>
-
-          {/* Auth section */}
-          <div className="border-t border-slate-100 pt-4 space-y-1">
-            {user ? (
-              <>
-                {/* Quick links */}
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Navigation</p>
-
-                <Link to="/" className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-                  <Home size={16} className="text-slate-400" /> Home
-                </Link>
-
-                {getDropdownLinks().map(({ to, icon, label }) => (
-                  <NavLink key={to} to={to}
-                    className="flex items-center gap-2.5 py-2.5 px-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
-                    <span className="text-slate-400">{icon}</span> {label}
-                  </NavLink>
-                ))}
-
-                <div className="pt-1">
-                  <button onClick={handleLogout}
-                    className="w-full flex items-center gap-2.5 py-2.5 px-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition">
-                    <LogOut size={16} /> Sign Out
-                  </button>
-                </div>
-              </>
-            ) : (
-              <div className="space-y-3">
+          ) : (
+            <div className="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl p-5 text-white shadow-lg">
+              <p className="font-black text-base mb-0.5">Start Learning Today</p>
+              <p className="text-slate-300 text-xs mb-4">Join thousands of students on LMSPRO</p>
+              <div className="flex gap-2">
                 <NavLink to="/auth"
-                  className="block text-center py-3 rounded-xl font-black bg-slate-900 text-white text-sm hover:bg-blue-700 transition">
-                  Join for Free
+                  className="flex-1 text-center py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-500 text-white text-sm transition">
+                  Join Free
                 </NavLink>
                 <NavLink to="/auth"
-                  className="block text-center py-3 font-bold text-sm text-slate-700 hover:text-blue-600 transition">
+                  className="flex-1 text-center py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white text-sm border border-white/20 transition">
                   Log in
                 </NavLink>
               </div>
-            )}
+            </div>
+          )}
+        </div>
+
+        {/* Student quick-stats strip */}
+        {user?.role === "STUDENT" && (
+          <div className="px-4 pb-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { icon: <Flame size={15} className="text-orange-500" />,    label: "Streak",     sub: "keep going"  },
+                { icon: <Star  size={15} className="text-amber-500"  />,    label: "My Courses", sub: "enrolled"    },
+                { icon: <TrendingUp size={15} className="text-blue-500" />, label: "Progress",   sub: "track it"    },
+              ].map((s) => (
+                <Link key={s.label} to="/StudentDashboard"
+                  className="bg-slate-50 hover:bg-blue-50 active:scale-95 rounded-xl p-3 text-center transition">
+                  <div className="flex justify-center mb-1.5">{s.icon}</div>
+                  <p className="text-[10px] font-black text-slate-700 leading-none">{s.label}</p>
+                  <p className="text-[9px] text-slate-400 mt-0.5">{s.sub}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Trending tags strip */}
+        <div className="px-4 pb-4">
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-3.5">
+            <div className="flex items-center gap-2 mb-2.5">
+              <Flame size={13} className="text-orange-500" />
+              <p className="text-xs font-black text-slate-700">Trending Now</p>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {["Web Dev", "UI/UX", "Python", "Marketing", "AI"].map((tag) => (
+                <Link key={tag} to={`/courses?search=${tag}`}
+                  className="text-[10px] font-bold bg-white text-slate-600 hover:bg-orange-500 hover:text-white active:scale-95 px-2.5 py-1 rounded-full border border-amber-200 hover:border-orange-500 transition">
+                  {tag}
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* Categories grid */}
+        <div className="px-4 pb-4">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">Browse Categories</p>
+          <div className="grid grid-cols-2 gap-2">
+            {categories.map((cat) => (
+              <NavLink key={cat.name} to={`/categories/${cat.name.toLowerCase()}`}
+                className="flex items-center gap-2.5 py-3 px-3.5 font-semibold text-sm text-slate-700 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition active:scale-95">
+                <span className="text-lg">{cat.emoji}</span> {cat.name}
+              </NavLink>
+            ))}
+          </div>
+        </div>
+
+        {/* Nav links for logged-in users */}
+        {user && (
+          <div className="px-4 pb-3 border-t border-slate-100 pt-3">
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Quick Links</p>
+            <div className="space-y-0.5">
+              <Link to="/"
+                className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                <Home size={16} className="text-slate-400 shrink-0" /> Home
+              </Link>
+              {getDropdownLinks().map(({ to, icon, label }) => (
+                <NavLink key={to} to={to}
+                  className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                  <span className="text-slate-400 shrink-0">{icon}</span> {label}
+                </NavLink>
+              ))}
+              <Link to="/notifications"
+                className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                <Bell size={16} className="text-slate-400 shrink-0" />
+                Notifications
+                {notifCount > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[9px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                    {notifCount > 9 ? "9+" : notifCount}
+                  </span>
+                )}
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Sign out */}
+        {user && (
+          <div className="px-4 pb-6 pt-2">
+            <button onClick={handleLogout}
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl border border-red-100 transition">
+              <LogOut size={15} /> Sign Out
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
