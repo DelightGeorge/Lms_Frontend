@@ -2,9 +2,6 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import "./index.css";
-
-
-
 import App from "./App.jsx";
 import Home from "./pages/Home.jsx";
 import Auth from "./pages/Auth.jsx";
@@ -22,6 +19,7 @@ import Design from "./pages/Categories/Design.jsx";
 import Cart from "./pages/Cart.jsx";
 import Notifications from "./pages/Notifications.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
+import PaymentVerify from "./pages/PaymentVerify.jsx";
 import { AuthProvider } from "./Context/AuthContext.jsx";
 
 const router = createBrowserRouter([
@@ -38,6 +36,9 @@ const router = createBrowserRouter([
       { path: "StudentDashboard", element: <StudentDashboard /> },
       { path: "admindashboard", element: <AdminDashboard /> },
       { path: "instructordashboard", element: <InstructorDashboard /> },
+      { path: "cart", element: <Cart /> },
+      { path: "notifications", element: <Notifications /> },
+      { path: "payment/verify", element: <PaymentVerify /> },
       {
         path: "categories/",
         element: <Categories />,
@@ -48,16 +49,14 @@ const router = createBrowserRouter([
           { path: "marketing", element: <Marketing /> },
         ],
       },
-      { path: "/cart", element: <Cart /> },
-      { path: "/notifications", element: <Notifications /> },
     ],
   },
 ]);
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <AuthProvider>  {/* ← wraps RouterProvider so context works everywhere */}
+    <AuthProvider>
       <RouterProvider router={router} />
     </AuthProvider>
-  </StrictMode>
+  </StrictMode>,
 );
