@@ -8,7 +8,7 @@ import {
   Eye, EyeOff,
 } from "lucide-react";
 import API from "../../services/api";
-import Layout from "../shared/Layout/Layout";
+import Layout from "../shared/Layout/Layout.jsx";
 
 const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
