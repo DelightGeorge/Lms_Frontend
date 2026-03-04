@@ -21,6 +21,7 @@ import Notifications from "./pages/Notifications.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
 import PaymentVerify from "./pages/PaymentVerify.jsx";
 import { AuthProvider } from "./Context/AuthContext.jsx";
+import Profile from "./pages/Profile.jsx";
 
 const router = createBrowserRouter([
   {
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Home /> },
       { path: "auth", element: <Auth /> },
+      { path: "/profile", element: <Profile /> },
       { path: "/verify-email", element: <VerifyEmail /> },
       { path: "courses", element: <CourseList /> },
       { path: "courses/:id", element: <CourseDetail /> },

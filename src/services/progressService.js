@@ -1,4 +1,5 @@
+// src/services/progressService.js
 import API from "./api";
 
-export const markLessonComplete = (lessonId)  => API.post("/progress/complete", { lessonId });
-export const getCourseProgress  = (courseId)  => API.get(`/progress/${courseId}`);
+export const markLessonComplete  = (lessonId)  => API.post("/progress/complete", { lessonId });
+export const getCourseProgress   = (courseId)  => API.get(`/progress/${courseId}`);
