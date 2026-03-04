@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
-import { useAuth } from "../../Context/AuthContext";
+
 import {
   Camera, Save, Loader2, CheckCircle, User,
   Mail, Phone, BookOpen, Award, Edit3, X,
@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import API from "../../services/api";
 import Layout from "../shared/Layout/Layout.jsx";
+import { useAuth } from "../Context/AuthContext.jsx";
 
 const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
