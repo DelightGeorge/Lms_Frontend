@@ -6,8 +6,10 @@ import {
   Loader2, Trophy, Target, HelpCircle, AlertCircle,
 } from "lucide-react";
 import Layout from "../../shared/Layout/Layout";
-import { useAuth } from "../Context/AuthContext";
-import API from "../services/api";
+
+
+import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
 
 const StarPicker = ({ value, onChange }) => (
   <div className="flex gap-1">
