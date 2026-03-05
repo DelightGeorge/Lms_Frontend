@@ -4,9 +4,9 @@ import {
   Send, Loader2, MoreVertical, GraduationCap,
   FileText, Trash2, Edit2, Video,
   Upload, ChevronRight, ArrowLeft, Save,
-  Star, TrendingUp, BarChart2, Award,
-  HelpCircle, Eye, MessageSquare, Zap,
-  Trophy, Target,
+  Star, TrendingUp,
+  HelpCircle,
+  Trophy,
 } from "lucide-react";
 import Layout from "../../shared/Layout/Layout";
 import {
@@ -39,6 +39,8 @@ const statusConfig = {
   PENDING_REVIEW: { color: "bg-amber-100 text-amber-700 border-amber-200",       dot: "bg-amber-500",   label: "Pending Review" },
   REJECTED:       { color: "bg-red-100 text-red-600 border-red-200",             dot: "bg-red-500",     label: "Rejected"       },
 };
+
+// ── Pure display components (module level — never re-created on render) ───────
 
 const StatusBadge = ({ status }) => {
   const cfg = statusConfig[status] || statusConfig.DRAFT;
@@ -98,7 +100,321 @@ const UploadButton = ({ label, accept, onUpload, uploading, preview, type = "ima
   );
 };
 
-const VIEWS = { LIST: "list", COURSE_DETAIL: "course_detail", STATS: "stats" };
+// ══════════════════════════════════════════════════════════════════════════════
+// MODAL COMPONENTS — defined at MODULE LEVEL so React never treats them as new
+// component types between renders. This is the root cause fix for the
+// "one keystroke then deselect" bug — defining them inside the parent component
+// caused React to unmount/remount modals on every state change.
+// ══════════════════════════════════════════════════════════════════════════════
+
+const LessonFormModal = ({
+  isEdit, onSubmit, onClose,
+  lessonForm, setLessonForm,
+  videoPreview, setVideoPreview,
+  uploadingVideo, handleVideoUpload,
+  savingLesson,
+}) => (
+  <>
+    <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+    <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-black text-slate-900">{isEdit ? "Edit Lesson" : "Add Lesson"}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
+        </div>
+        <form onSubmit={onSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
+            <input
+              value={lessonForm.title}
+              onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. Introduction to React"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Type</label>
+            <div className="grid grid-cols-2 gap-3">
+              {["TEXT", "VIDEO"].map((t) => (
+                <button key={t} type="button" onClick={() => setLessonForm((p) => ({ ...p, type: t }))}
+                  className={`py-3 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 transition ${lessonForm.type === t ? "border-blue-500 bg-blue-50 text-blue-600" : "border-slate-200 text-slate-500"}`}>
+                  {t === "VIDEO" ? <Video size={16} /> : <FileText size={16} />} {t}
+                </button>
+              ))}
+            </div>
+          </div>
+          {lessonForm.type === "VIDEO" ? (
+            <div className="space-y-3">
+              <UploadButton label="Upload Video" accept="video/*" onUpload={handleVideoUpload} uploading={uploadingVideo} preview={videoPreview} type="video" />
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <div className="flex-1 h-px bg-slate-200" /> or paste URL <div className="flex-1 h-px bg-slate-200" />
+              </div>
+              <input type="url" value={videoPreview || lessonForm.content}
+                onChange={(e) => { setVideoPreview(""); setLessonForm((p) => ({ ...p, content: e.target.value })); }}
+                placeholder="https://youtube.com/..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Content *</label>
+              <textarea rows="5" value={lessonForm.content}
+                onChange={(e) => setLessonForm((p) => ({ ...p, content: e.target.value }))}
+                placeholder="Write lesson content..."
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition"
+                required />
+            </div>
+          )}
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button type="submit" disabled={savingLesson}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
+              {savingLesson ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {savingLesson ? "Saving..." : isEdit ? "Save Changes" : "Add Lesson"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </>
+);
+
+const CourseFormModal = ({
+  isEdit, onSubmit, onClose,
+  courseForm, setCourseForm,
+  thumbPreview, handleThumbUpload, uploadingThumb,
+  submitting, savingCourse,
+}) => (
+  <>
+    <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+    <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 sticky top-0 bg-white z-10">
+          <h2 className="text-xl font-black text-slate-900">{isEdit ? "Edit Course" : "Create Course"}</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
+        </div>
+        <form onSubmit={onSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
+            <input
+              value={courseForm.title}
+              onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. Complete React Mastery"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Category</label>
+              <select value={courseForm.category} onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))}
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
+                {["Development", "Design", "Business", "Marketing"].map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Price ($)</label>
+              <input type="number" min="0" value={courseForm.price}
+                onChange={(e) => setCourseForm((p) => ({ ...p, price: e.target.value }))}
+                placeholder="0 = Free"
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Description *</label>
+            <textarea rows="3" value={courseForm.description}
+              onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))}
+              placeholder="What will students learn?"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition"
+              required />
+          </div>
+          <UploadButton label="Course Thumbnail" accept="image/*" onUpload={handleThumbUpload} uploading={uploadingThumb} preview={thumbPreview} type="image" />
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button type="submit" disabled={submitting || savingCourse}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
+              {(submitting || savingCourse) ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+              {isEdit ? "Save Changes" : "Create Course"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </>
+);
+
+const ResourceModal = ({
+  onSubmit, onClose,
+  resourceForm, setResourceForm,
+  resPreview, setResPreview,
+  uploadingRes, handleResUpload,
+  savingResource,
+}) => (
+  <>
+    <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+    <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
+      <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-xl font-black text-slate-900">Add Resource</h2>
+          <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
+        </div>
+        <form onSubmit={onSubmit} className="p-6 space-y-4">
+          <div>
+            <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
+            <input
+              value={resourceForm.title}
+              onChange={(e) => setResourceForm((p) => ({ ...p, title: e.target.value }))}
+              placeholder="e.g. Course Notes PDF"
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition"
+              required
+            />
+          </div>
+          <UploadButton label="Upload File" accept="*/*" onUpload={handleResUpload} uploading={uploadingRes} preview={resPreview} type="file" />
+          <div className="flex items-center gap-2 text-xs text-slate-400">
+            <div className="flex-1 h-px bg-slate-200" /> or paste URL <div className="flex-1 h-px bg-slate-200" />
+          </div>
+          <input type="url" value={resPreview || resourceForm.fileUrl}
+            onChange={(e) => { setResPreview(""); setResourceForm((p) => ({ ...p, fileUrl: e.target.value })); }}
+            placeholder="https://example.com/file.pdf"
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition" />
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button type="submit" disabled={savingResource}
+              className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
+              {savingResource ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
+              {savingResource ? "Adding..." : "Add Resource"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </>
+);
+
+const QuizBuilderModal = ({ onClose, onSubmit, quizForm, setQuizForm, savingQuiz }) => {
+  const addQuestion = () => setQuizForm((p) => ({
+    ...p,
+    questions: [...p.questions, {
+      text: "",
+      options: [
+        { text: "", isCorrect: true  },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
+        { text: "", isCorrect: false },
+      ],
+    }],
+  }));
+
+  const updateQuestion = (qi, text) => setQuizForm((p) => ({
+    ...p,
+    questions: p.questions.map((q, i) => i === qi ? { ...q, text } : q),
+  }));
+
+  const updateOption = (qi, oi, field, value) => setQuizForm((p) => ({
+    ...p,
+    questions: p.questions.map((q, i) => i !== qi ? q : {
+      ...q,
+      options: q.options.map((o, j) =>
+        field === "isCorrect"
+          ? { ...o, isCorrect: j === oi }
+          : j === oi ? { ...o, [field]: value } : o
+      ),
+    }),
+  }));
+
+  const removeQuestion = (qi) => setQuizForm((p) => ({
+    ...p,
+    questions: p.questions.filter((_, i) => i !== qi),
+  }));
+
+  return (
+    <>
+      <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Create Quiz</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Build a quiz for this course</p>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Quiz Title *</label>
+              <input
+                value={quizForm.title}
+                onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
+                placeholder="e.g. Module 1 Knowledge Check"
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
+              />
+            </div>
+
+            {quizForm.questions.map((q, qi) => (
+              <div key={qi} className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-blue-600 uppercase tracking-wide">Question {qi + 1}</span>
+                  {quizForm.questions.length > 1 && (
+                    <button onClick={() => removeQuestion(qi)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
+                <input
+                  value={q.text}
+                  onChange={(e) => updateQuestion(qi, e.target.value)}
+                  placeholder="Enter your question..."
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
+                />
+                <div className="space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Options — select the correct answer</p>
+                  {q.options.map((o, oi) => (
+                    <div key={oi} className="flex items-center gap-2">
+                      <button type="button" onClick={() => updateOption(qi, oi, "isCorrect", true)}
+                        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${o.isCorrect ? "border-emerald-500 bg-emerald-500" : "border-slate-300 hover:border-emerald-400"}`}>
+                        {o.isCorrect && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </button>
+                      <input
+                        value={o.text}
+                        onChange={(e) => updateOption(qi, oi, "text", e.target.value)}
+                        placeholder={`Option ${oi + 1}`}
+                        className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition ${o.isCorrect ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 bg-white"}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            <button onClick={addQuestion}
+              className="w-full border-2 border-dashed border-blue-200 hover:border-blue-400 text-blue-500 font-bold text-sm py-3 rounded-2xl transition flex items-center justify-center gap-2">
+              <Plus size={16} /> Add Question
+            </button>
+          </div>
+
+          <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
+            <button onClick={onClose}
+              className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
+              Cancel
+            </button>
+            <button onClick={onSubmit} disabled={savingQuiz || !quizForm.title}
+              className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
+              {savingQuiz ? <Loader2 size={16} className="animate-spin" /> : <HelpCircle size={16} />}
+              {savingQuiz ? "Creating..." : "Create Quiz"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+};
+
+// ══════════════════════════════════════════════════════════════════════════════
+
+const VIEWS = { LIST: "list", COURSE_DETAIL: "course_detail" };
 const TABS  = { LESSONS: "lessons", RESOURCES: "resources", QUIZZES: "quizzes", REVIEWS: "reviews", STUDENTS: "students" };
 
 const InstructorDashboard = () => {
@@ -117,13 +433,13 @@ const InstructorDashboard = () => {
   const [toast,          setToast]          = useState(null);
 
   // modals
-  const [createCourseOpen,  setCreateCourseOpen]  = useState(false);
-  const [editCourseOpen,    setEditCourseOpen]     = useState(false);
-  const [createLessonOpen,  setCreateLessonOpen]   = useState(false);
-  const [editLessonOpen,    setEditLessonOpen]     = useState(false);
-  const [editingLesson,     setEditingLesson]      = useState(null);
-  const [addResourceOpen,   setAddResourceOpen]    = useState(false);
-  const [createQuizOpen,    setCreateQuizOpen]     = useState(false);
+  const [createCourseOpen, setCreateCourseOpen] = useState(false);
+  const [editCourseOpen,   setEditCourseOpen]   = useState(false);
+  const [createLessonOpen, setCreateLessonOpen] = useState(false);
+  const [editLessonOpen,   setEditLessonOpen]   = useState(false);
+  const [editingLesson,    setEditingLesson]     = useState(null);
+  const [addResourceOpen,  setAddResourceOpen]  = useState(false);
+  const [createQuizOpen,   setCreateQuizOpen]   = useState(false);
 
   // forms
   const [courseForm,   setCourseForm]   = useState({ title: "", description: "", price: "", category: "Development" });
@@ -143,13 +459,13 @@ const InstructorDashboard = () => {
   const [resPreview,     setResPreview]     = useState("");
 
   // loading states
-  const [submitting,     setSubmitting]     = useState(false);
-  const [submitLoading,  setSubmitLoading]  = useState({});
-  const [deleteLoading,  setDeleteLoading]  = useState({});
-  const [savingLesson,   setSavingLesson]   = useState(false);
-  const [savingCourse,   setSavingCourse]   = useState(false);
-  const [savingResource, setSavingResource] = useState(false);
-  const [savingQuiz,     setSavingQuiz]     = useState(false);
+  const [submitting,     setSubmitting]    = useState(false);
+  const [submitLoading,  setSubmitLoading] = useState({});
+  const [deleteLoading,  setDeleteLoading] = useState({});
+  const [savingLesson,   setSavingLesson]  = useState(false);
+  const [savingCourse,   setSavingCourse]  = useState(false);
+  const [savingResource, setSavingResource]= useState(false);
+  const [savingQuiz,     setSavingQuiz]    = useState(false);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -163,24 +479,16 @@ const InstructorDashboard = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch tab data when tab changes
   useEffect(() => {
     if (view !== VIEWS.COURSE_DETAIL || !selectedCourse) return;
     setLoadingTab(true);
-
     const fetchers = {
-      [TABS.LESSONS]: () => getLessonsByCourse(selectedCourse.id)
-        .then((r) => setLessons(Array.isArray(r.data) ? r.data : [])),
-      [TABS.RESOURCES]: () => getResourcesByCourse(selectedCourse.id)
-        .then((r) => setResources(Array.isArray(r.data) ? r.data : [])),
-      [TABS.QUIZZES]: () => API.get(`/quizzes/course/${selectedCourse.id}`)
-        .then((r) => setQuizzes(Array.isArray(r.data) ? r.data : [])),
-      [TABS.REVIEWS]: () => API.get(`/reviews/course/${selectedCourse.id}`)
-        .then((r) => setReviews(r.data || { reviews: [], averageRating: 0, totalReviews: 0 })),
-      [TABS.STUDENTS]: () => API.get(`/enrollments/course/${selectedCourse.id}`)
-        .then((r) => setStudents(Array.isArray(r.data) ? r.data : [])),
+      [TABS.LESSONS]:   () => getLessonsByCourse(selectedCourse.id).then((r) => setLessons(Array.isArray(r.data) ? r.data : [])),
+      [TABS.RESOURCES]: () => getResourcesByCourse(selectedCourse.id).then((r) => setResources(Array.isArray(r.data) ? r.data : [])),
+      [TABS.QUIZZES]:   () => API.get(`/quizzes/course/${selectedCourse.id}`).then((r) => setQuizzes(Array.isArray(r.data) ? r.data : [])),
+      [TABS.REVIEWS]:   () => API.get(`/reviews/course/${selectedCourse.id}`).then((r) => setReviews(r.data || { reviews: [], averageRating: 0, totalReviews: 0 })),
+      [TABS.STUDENTS]:  () => API.get(`/enrollments/course/${selectedCourse.id}`).then((r) => setStudents(Array.isArray(r.data) ? r.data : [])),
     };
-
     (fetchers[activeTab] || fetchers[TABS.LESSONS])()
       .catch(console.error)
       .finally(() => setLoadingTab(false));
@@ -193,7 +501,7 @@ const InstructorDashboard = () => {
     setMenuOpen(null);
   };
 
-  // ── Course CRUD ───────────────────────────────
+  // ── Course CRUD ──────────────────────────────────────────────────────────────
   const handleCreateCourse = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -258,7 +566,7 @@ const InstructorDashboard = () => {
     finally { setSubmitLoading((p) => ({ ...p, [courseId]: false })); setMenuOpen(null); }
   };
 
-  // ── Lesson CRUD ───────────────────────────────
+  // ── Lesson CRUD ──────────────────────────────────────────────────────────────
   const handleCreateLesson = async (e) => {
     e.preventDefault();
     setSavingLesson(true);
@@ -313,7 +621,7 @@ const InstructorDashboard = () => {
     finally { setDeleteLoading((p) => ({ ...p, [lessonId]: false })); }
   };
 
-  // ── Resource ──────────────────────────────────
+  // ── Resource ─────────────────────────────────────────────────────────────────
   const handleAddResource = async (e) => {
     e.preventDefault();
     setSavingResource(true);
@@ -328,9 +636,8 @@ const InstructorDashboard = () => {
     finally { setSavingResource(false); }
   };
 
-  // ── Quiz ──────────────────────────────────────
-  const handleCreateQuiz = async (e) => {
-    e.preventDefault();
+  // ── Quiz ─────────────────────────────────────────────────────────────────────
+  const handleCreateQuiz = async () => {
     setSavingQuiz(true);
     try {
       const res = await API.post("/quizzes", { ...quizForm, courseId: selectedCourse.id });
@@ -351,10 +658,10 @@ const InstructorDashboard = () => {
     } catch { showToast("Failed.", "error"); }
   };
 
-  // ── Uploads ───────────────────────────────────
-  const handleThumbUpload  = async (f) => { setUploadingThumb(true);  try { setThumbPreview(await uploadToCloudinary(f, "image")); } catch { showToast("Upload failed", "error"); } finally { setUploadingThumb(false); } };
-  const handleVideoUpload  = async (f) => { setUploadingVideo(true);  try { setVideoPreview(await uploadToCloudinary(f, "video")); } catch { showToast("Upload failed", "error"); } finally { setUploadingVideo(false); } };
-  const handleResUpload    = async (f) => { setUploadingRes(true);    try { setResPreview(await uploadToCloudinary(f, "auto"));   } catch { showToast("Upload failed", "error"); } finally { setUploadingRes(false); } };
+  // ── Uploads ──────────────────────────────────────────────────────────────────
+  const handleThumbUpload = async (f) => { setUploadingThumb(true); try { setThumbPreview(await uploadToCloudinary(f, "image")); } catch { showToast("Upload failed", "error"); } finally { setUploadingThumb(false); } };
+  const handleVideoUpload = async (f) => { setUploadingVideo(true); try { setVideoPreview(await uploadToCloudinary(f, "video")); } catch { showToast("Upload failed", "error"); } finally { setUploadingVideo(false); } };
+  const handleResUpload   = async (f) => { setUploadingRes(true);   try { setResPreview(await uploadToCloudinary(f, "auto"));   } catch { showToast("Upload failed", "error"); } finally { setUploadingRes(false); } };
 
   const stats = {
     total:     courses.length,
@@ -365,227 +672,9 @@ const InstructorDashboard = () => {
       .reduce((a, c) => a + ((c._count?.enrollments || 0) * (c.price || 0)), 0),
   };
 
-  // ── Lesson / Course form modal ─────────────────
-  const LessonFormModal = ({ isEdit, onSubmit, onClose }) => (
-    <>
-      <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-      <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
-        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 sticky top-0 bg-white z-10">
-            <h2 className="text-xl font-black text-slate-900">{isEdit ? "Edit Lesson" : "Add Lesson"}</h2>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-          </div>
-          <form onSubmit={onSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-              <input value={lessonForm.title} onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="e.g. Introduction to React"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" required />
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Type</label>
-              <div className="grid grid-cols-2 gap-3">
-                {["TEXT", "VIDEO"].map((t) => (
-                  <button key={t} type="button" onClick={() => setLessonForm((p) => ({ ...p, type: t }))}
-                    className={`py-3 rounded-xl border-2 font-bold text-sm flex items-center justify-center gap-2 transition ${lessonForm.type === t ? "border-blue-500 bg-blue-50 text-blue-600" : "border-slate-200 text-slate-500"}`}>
-                    {t === "VIDEO" ? <Video size={16} /> : <FileText size={16} />} {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {lessonForm.type === "VIDEO" ? (
-              <div className="space-y-3">
-                <UploadButton label="Upload Video" accept="video/*" onUpload={handleVideoUpload} uploading={uploadingVideo} preview={videoPreview} type="video" />
-                <div className="flex items-center gap-2 text-xs text-slate-400">
-                  <div className="flex-1 h-px bg-slate-200" /> or paste URL <div className="flex-1 h-px bg-slate-200" />
-                </div>
-                <input type="url" value={videoPreview || lessonForm.content}
-                  onChange={(e) => { setVideoPreview(""); setLessonForm((p) => ({ ...p, content: e.target.value })); }}
-                  placeholder="https://youtube.com/..."
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
-              </div>
-            ) : (
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Content *</label>
-                <textarea rows="5" value={lessonForm.content} onChange={(e) => setLessonForm((p) => ({ ...p, content: e.target.value }))}
-                  placeholder="Write lesson content..."
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition" required />
-              </div>
-            )}
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button type="submit" disabled={savingLesson}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
-                {savingLesson ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {savingLesson ? "Saving..." : isEdit ? "Save Changes" : "Add Lesson"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
-  );
-
-  const CourseFormModal = ({ isEdit, onSubmit, onClose }) => (
-    <>
-      <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-      <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
-        <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 sticky top-0 bg-white z-10">
-            <h2 className="text-xl font-black text-slate-900">{isEdit ? "Edit Course" : "Create Course"}</h2>
-            <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-          </div>
-          <form onSubmit={onSubmit} className="p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-              <input value={courseForm.title} onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))}
-                placeholder="e.g. Complete React Mastery"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" required />
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Category</label>
-                <select value={courseForm.category} onChange={(e) => setCourseForm((p) => ({ ...p, category: e.target.value }))}
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition">
-                  {["Development", "Design", "Business", "Marketing"].map((c) => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Price ($)</label>
-                <input type="number" min="0" value={courseForm.price} onChange={(e) => setCourseForm((p) => ({ ...p, price: e.target.value }))}
-                  placeholder="0 = Free"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1.5">Description *</label>
-              <textarea rows="3" value={courseForm.description} onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))}
-                placeholder="What will students learn?"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition" required />
-            </div>
-            <UploadButton label="Course Thumbnail" accept="image/*" onUpload={handleThumbUpload} uploading={uploadingThumb} preview={thumbPreview} type="image" />
-            <div className="flex gap-3 pt-2">
-              <button type="button" onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-              <button type="submit" disabled={submitting || savingCourse}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
-                {(submitting || savingCourse) ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                {isEdit ? "Save Changes" : "Create Course"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </>
-  );
-
-  // ── Quiz Builder Modal ────────────────────────
-  const QuizBuilderModal = () => {
-    const addQuestion = () => setQuizForm((p) => ({
-      ...p,
-      questions: [...p.questions, { text: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }] }],
-    }));
-
-    const updateQuestion = (qi, text) => setQuizForm((p) => ({
-      ...p,
-      questions: p.questions.map((q, i) => i === qi ? { ...q, text } : q),
-    }));
-
-    const updateOption = (qi, oi, field, value) => setQuizForm((p) => ({
-      ...p,
-      questions: p.questions.map((q, i) => i !== qi ? q : {
-        ...q,
-        options: q.options.map((o, j) =>
-          field === "isCorrect"
-            ? { ...o, isCorrect: j === oi } // radio behaviour
-            : j === oi ? { ...o, [field]: value } : o
-        ),
-      }),
-    }));
-
-    const removeQuestion = (qi) => setQuizForm((p) => ({
-      ...p,
-      questions: p.questions.filter((_, i) => i !== qi),
-    }));
-
-    return (
-      <>
-        <div onClick={() => setCreateQuizOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
-              <div>
-                <h2 className="text-xl font-black text-slate-900">Create Quiz</h2>
-                <p className="text-xs text-slate-400 mt-0.5">Build a quiz for this course</p>
-              </div>
-              <button onClick={() => setCreateQuizOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-slate-700 mb-1.5">Quiz Title *</label>
-                <input value={quizForm.title} onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
-                  placeholder="e.g. Module 1 Knowledge Check"
-                  className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
-              </div>
-
-              {quizForm.questions.map((q, qi) => (
-                <div key={qi} className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-black text-blue-600 uppercase tracking-wide">Question {qi + 1}</span>
-                    {quizForm.questions.length > 1 && (
-                      <button onClick={() => removeQuestion(qi)}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                  <input value={q.text} onChange={(e) => updateQuestion(qi, e.target.value)}
-                    placeholder="Enter your question..."
-                    className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
-
-                  <div className="space-y-2">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Options — select the correct answer</p>
-                    {q.options.map((o, oi) => (
-                      <div key={oi} className="flex items-center gap-2">
-                        <button type="button" onClick={() => updateOption(qi, oi, "isCorrect", true)}
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${o.isCorrect ? "border-emerald-500 bg-emerald-500" : "border-slate-300 hover:border-emerald-400"}`}>
-                          {o.isCorrect && <div className="w-2 h-2 rounded-full bg-white" />}
-                        </button>
-                        <input value={o.text} onChange={(e) => updateOption(qi, oi, "text", e.target.value)}
-                          placeholder={`Option ${oi + 1}`}
-                          className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition ${o.isCorrect ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 bg-white"}`} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <button onClick={addQuestion}
-                className="w-full border-2 border-dashed border-blue-200 hover:border-blue-400 text-blue-500 font-bold text-sm py-3 rounded-2xl transition flex items-center justify-center gap-2">
-                <Plus size={16} /> Add Question
-              </button>
-            </div>
-
-            <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
-              <button onClick={() => setCreateQuizOpen(false)}
-                className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
-                Cancel
-              </button>
-              <button onClick={handleCreateQuiz} disabled={savingQuiz || !quizForm.title}
-                className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
-                {savingQuiz ? <Loader2 size={16} className="animate-spin" /> : <HelpCircle size={16} />}
-                {savingQuiz ? "Creating..." : "Create Quiz"}
-              </button>
-            </div>
-          </div>
-        </div>
-      </>
-    );
-  };
-
-  // ══════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════════
   // COURSE DETAIL VIEW
-  // ══════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════════
   if (view === VIEWS.COURSE_DETAIL && selectedCourse) {
     const tabList = [
       { key: TABS.LESSONS,   label: "Lessons",   icon: <BookOpen size={14} /> },
@@ -651,11 +740,11 @@ const InstructorDashboard = () => {
                   </div>
                 </div>
 
-                {/* Mini stats row */}
+                {/* Mini stats */}
                 <div className="grid grid-cols-4 gap-3 mt-5 pt-5 border-t border-slate-100">
                   {[
-                    { label: "Students",   value: selectedCourse._count?.enrollments || 0,  icon: <Users size={13} />,    color: "text-blue-600"    },
-                    { label: "Lessons",    value: lessons.length || selectedCourse._count?.lessons || 0, icon: <BookOpen size={13} />, color: "text-violet-600"  },
+                    { label: "Students",   value: selectedCourse._count?.enrollments || 0, icon: <Users size={13} />, color: "text-blue-600" },
+                    { label: "Lessons",    value: lessons.length || selectedCourse._count?.lessons || 0, icon: <BookOpen size={13} />, color: "text-violet-600" },
                     { label: "Avg Rating", value: reviews.averageRating ? `${reviews.averageRating}★` : "—", icon: <Star size={13} />, color: "text-amber-500" },
                     { label: "Revenue",    value: `$${((selectedCourse._count?.enrollments || 0) * (selectedCourse.price || 0)).toLocaleString()}`, icon: <TrendingUp size={13} />, color: "text-emerald-600" },
                   ].map(({ label, value, icon, color }) => (
@@ -685,9 +774,8 @@ const InstructorDashboard = () => {
               {loadingTab ? (
                 <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-14 bg-slate-100 animate-pulse rounded-xl" />)}</div>
               ) : (
-
                 <>
-                  {/* ── LESSONS ── */}
+                  {/* LESSONS */}
                   {activeTab === TABS.LESSONS && (
                     <>
                       <div className="flex items-center justify-between mb-5">
@@ -731,7 +819,7 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* ── RESOURCES ── */}
+                  {/* RESOURCES */}
                   {activeTab === TABS.RESOURCES && (
                     <>
                       <div className="flex items-center justify-between mb-5">
@@ -767,7 +855,7 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* ── QUIZZES ── */}
+                  {/* QUIZZES */}
                   {activeTab === TABS.QUIZZES && (
                     <>
                       <div className="flex items-center justify-between mb-5">
@@ -818,7 +906,7 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* ── REVIEWS ── */}
+                  {/* REVIEWS */}
                   {activeTab === TABS.REVIEWS && (
                     <>
                       <div className="mb-5">
@@ -837,6 +925,7 @@ const InstructorDashboard = () => {
                         <div className="text-center py-10">
                           <Star size={36} className="text-slate-200 mx-auto mb-3" />
                           <p className="font-bold text-slate-500">No reviews yet</p>
+                          <p className="text-xs text-slate-400 mt-1">Students will see a review form after enrolling</p>
                         </div>
                       ) : (
                         <div className="space-y-4">
@@ -844,7 +933,9 @@ const InstructorDashboard = () => {
                             <div key={r.id} className="border border-slate-100 rounded-2xl p-4">
                               <div className="flex items-start gap-3">
                                 <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
-                                  {r.user?.avatarUrl ? <img src={r.user.avatarUrl} alt="" className="w-full h-full object-cover" /> : r.user?.fullName?.charAt(0)}
+                                  {r.user?.avatarUrl
+                                    ? <img src={r.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                    : r.user?.fullName?.charAt(0)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-2">
@@ -862,7 +953,7 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* ── STUDENTS ── */}
+                  {/* STUDENTS */}
                   {activeTab === TABS.STUDENTS && (
                     <>
                       <div className="mb-5">
@@ -878,7 +969,7 @@ const InstructorDashboard = () => {
                       ) : (
                         <div className="space-y-3">
                           {students.map((enrollment) => {
-                            const student = enrollment.user || enrollment;
+                            const student  = enrollment.user || enrollment;
                             const progress = enrollment.progress || 0;
                             return (
                               <div key={enrollment.id} className="flex items-center gap-4 p-4 rounded-2xl border border-slate-100 hover:bg-slate-50/50 transition">
@@ -917,56 +1008,56 @@ const InstructorDashboard = () => {
           </div>
         </div>
 
-        {createLessonOpen && <LessonFormModal isEdit={false} onSubmit={handleCreateLesson} onClose={() => setCreateLessonOpen(false)} />}
-        {editLessonOpen   && <LessonFormModal isEdit={true}  onSubmit={handleEditLesson}   onClose={() => { setEditLessonOpen(false); setEditingLesson(null); }} />}
-        {editCourseOpen   && <CourseFormModal isEdit={true}  onSubmit={handleEditCourse}   onClose={() => setEditCourseOpen(false)} />}
-        {createQuizOpen   && <QuizBuilderModal />}
-
+        {/* Modals rendered at Layout root — never inside conditional tab content */}
+        {createLessonOpen && (
+          <LessonFormModal
+            isEdit={false} onSubmit={handleCreateLesson} onClose={() => setCreateLessonOpen(false)}
+            lessonForm={lessonForm} setLessonForm={setLessonForm}
+            videoPreview={videoPreview} setVideoPreview={setVideoPreview}
+            uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload}
+            savingLesson={savingLesson}
+          />
+        )}
+        {editLessonOpen && (
+          <LessonFormModal
+            isEdit={true} onSubmit={handleEditLesson} onClose={() => { setEditLessonOpen(false); setEditingLesson(null); }}
+            lessonForm={lessonForm} setLessonForm={setLessonForm}
+            videoPreview={videoPreview} setVideoPreview={setVideoPreview}
+            uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload}
+            savingLesson={savingLesson}
+          />
+        )}
+        {editCourseOpen && (
+          <CourseFormModal
+            isEdit={true} onSubmit={handleEditCourse} onClose={() => setEditCourseOpen(false)}
+            courseForm={courseForm} setCourseForm={setCourseForm}
+            thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
+            submitting={submitting} savingCourse={savingCourse}
+          />
+        )}
         {addResourceOpen && (
-          <>
-            <div onClick={() => setAddResourceOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
-            <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
-              <div className="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
-                <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-                  <h2 className="text-xl font-black text-slate-900">Add Resource</h2>
-                  <button onClick={() => setAddResourceOpen(false)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
-                </div>
-                <form onSubmit={handleAddResource} className="p-6 space-y-4">
-                  <div>
-                    <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-                    <input value={resourceForm.title} onChange={(e) => setResourceForm((p) => ({ ...p, title: e.target.value }))}
-                      placeholder="e.g. Course Notes PDF"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition" required />
-                  </div>
-                  <UploadButton label="Upload File" accept="*/*" onUpload={handleResUpload} uploading={uploadingRes} preview={resPreview} type="file" />
-                  <div className="flex items-center gap-2 text-xs text-slate-400">
-                    <div className="flex-1 h-px bg-slate-200" /> or paste URL <div className="flex-1 h-px bg-slate-200" />
-                  </div>
-                  <input type="url" value={resPreview || resourceForm.fileUrl}
-                    onChange={(e) => { setResPreview(""); setResourceForm((p) => ({ ...p, fileUrl: e.target.value })); }}
-                    placeholder="https://example.com/file.pdf"
-                    className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition" />
-                  <div className="flex gap-3 pt-2">
-                    <button type="button" onClick={() => setAddResourceOpen(false)}
-                      className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
-                    <button type="submit" disabled={savingResource}
-                      className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
-                      {savingResource ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
-                      {savingResource ? "Adding..." : "Add Resource"}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </>
+          <ResourceModal
+            onSubmit={handleAddResource} onClose={() => setAddResourceOpen(false)}
+            resourceForm={resourceForm} setResourceForm={setResourceForm}
+            resPreview={resPreview} setResPreview={setResPreview}
+            uploadingRes={uploadingRes} handleResUpload={handleResUpload}
+            savingResource={savingResource}
+          />
+        )}
+        {createQuizOpen && (
+          <QuizBuilderModal
+            onClose={() => setCreateQuizOpen(false)} onSubmit={handleCreateQuiz}
+            quizForm={quizForm} setQuizForm={setQuizForm}
+            savingQuiz={savingQuiz}
+          />
         )}
       </Layout>
     );
   }
 
-  // ══════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════════
   // COURSE LIST VIEW
-  // ══════════════════════════════════════════════
+  // ══════════════════════════════════════════════════════════════════════════════
   return (
     <Layout>
       {toast && (
@@ -1046,6 +1137,11 @@ const InstructorDashboard = () => {
                         <span className="flex items-center gap-1 text-xs text-slate-400"><Users size={12} /> {course._count?.enrollments || 0} students</span>
                         <span className="text-xs text-slate-400 font-semibold">{course.price === 0 ? "Free" : `$${course.price}`}</span>
                         <span className="text-xs text-slate-400">{course._count?.lessons || 0} lessons</span>
+                        {course.averageRating > 0 && (
+                          <span className="flex items-center gap-1 text-xs text-amber-500 font-bold">
+                            <Star size={11} className="fill-amber-400" /> {course.averageRating}
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -1084,8 +1180,22 @@ const InstructorDashboard = () => {
         </div>
       </div>
 
-      {createCourseOpen && <CourseFormModal isEdit={false} onSubmit={handleCreateCourse} onClose={() => setCreateCourseOpen(false)} />}
-      {editCourseOpen   && <CourseFormModal isEdit={true}  onSubmit={handleEditCourse}   onClose={() => setEditCourseOpen(false)} />}
+      {createCourseOpen && (
+        <CourseFormModal
+          isEdit={false} onSubmit={handleCreateCourse} onClose={() => setCreateCourseOpen(false)}
+          courseForm={courseForm} setCourseForm={setCourseForm}
+          thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
+          submitting={submitting} savingCourse={savingCourse}
+        />
+      )}
+      {editCourseOpen && (
+        <CourseFormModal
+          isEdit={true} onSubmit={handleEditCourse} onClose={() => setEditCourseOpen(false)}
+          courseForm={courseForm} setCourseForm={setCourseForm}
+          thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
+          submitting={submitting} savingCourse={savingCourse}
+        />
+      )}
     </Layout>
   );
 };
