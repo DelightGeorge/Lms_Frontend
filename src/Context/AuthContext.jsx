@@ -3,29 +3,39 @@ import { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user,    setUserState] = useState(null);
+  const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     const stored = localStorage.getItem("user");
-    if (stored) setUser(JSON.parse(stored));
+    if (stored) setUserState(JSON.parse(stored));
     setLoading(false);
   }, []);
 
   const login = (userData, token) => {
     localStorage.setItem("token", token);
     localStorage.setItem("user", JSON.stringify(userData));
-    setUser(userData);
+    setUserState(userData);
   };
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    setUser(null);
+    setUserState(null);
+  };
+
+  // ── updateUser: call this after profile/avatar changes ──
+  // Updates both context state AND localStorage so it survives refresh
+  const updateUser = (partial) => {
+    setUserState((prev) => {
+      const updated = { ...prev, ...partial };
+      localStorage.setItem("user", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, login, logout, loading, updateUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

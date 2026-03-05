@@ -1,63 +1,63 @@
 import { useState, useRef, useEffect } from "react";
-
-
+import Layout from "../shared/Layout/Layout";
+import { useAuth } from "../Context/AuthContext";
 import {
-  Camera, Save, Loader2, CheckCircle, User,
-  Mail, Phone, BookOpen, Award, Edit3, X,
+  Camera, Save, Loader2, User,
+  Mail, Phone, Award, Edit3, X,
   GraduationCap, Briefcase, Target, Shield,
   Eye, EyeOff,
 } from "lucide-react";
+import API from "../services/api";
 
-import Layout from "../shared/Layout/Layout.jsx";
-import { useAuth } from "../Context/AuthContext.jsx";
-import API from "../services/api.js";
-
-const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
-const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
-
+// ── Cloudinary upload ─────────────────────────────────────
 const uploadToCloudinary = async (file) => {
+  const cloudName    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
+  const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+
+  if (!cloudName || !uploadPreset) {
+    throw new Error("Cloudinary env vars missing: VITE_CLOUDINARY_CLOUD_NAME and VITE_CLOUDINARY_UPLOAD_PRESET must be set in Vercel");
+  }
+
   const fd = new FormData();
   fd.append("file", file);
-  fd.append("upload_preset", UPLOAD_PRESET);
-  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-    method: "POST", body: fd,
-  });
-  if (!res.ok) throw new Error("Upload failed");
+  fd.append("upload_preset", uploadPreset);
+
+  const res = await fetch(
+    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+    { method: "POST", body: fd }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || "Cloudinary upload failed");
+  }
   return (await res.json()).secure_url;
 };
 
 const roleBadge = {
-  ADMIN:      { label: "Admin",      bg: "bg-red-100 text-red-600 border-red-200",         icon: <Shield size={11} />       },
-  INSTRUCTOR: { label: "Instructor", bg: "bg-blue-100 text-blue-600 border-blue-200",       icon: <Briefcase size={11} />    },
+  ADMIN:      { label: "Admin",      bg: "bg-red-100 text-red-600 border-red-200",            icon: <Shield size={11} />        },
+  INSTRUCTOR: { label: "Instructor", bg: "bg-blue-100 text-blue-600 border-blue-200",          icon: <Briefcase size={11} />     },
   STUDENT:    { label: "Student",    bg: "bg-emerald-100 text-emerald-600 border-emerald-200", icon: <GraduationCap size={11} /> },
 };
 
 const Profile = () => {
-  const { user, setUser } = useAuth();
+  const { user, updateUser } = useAuth();
 
   const [form, setForm] = useState({
-    fullName:       "",
-    bio:            "",
-    phone:          "",
-    learningGoal:   "",
-    expertise:      "",
-    yearsExperience:"",
+    fullName: "", bio: "", phone: "", learningGoal: "", expertise: "", yearsExperience: "",
   });
-
-  const [stats,          setStats]          = useState({ enrollments: 0, completed: 0, courses: 0 });
-  const [saving,         setSaving]         = useState(false);
-  const [uploadingAvatar,setUploadingAvatar]= useState(false);
-  const [toast,          setToast]          = useState(null);
-  const [editMode,       setEditMode]       = useState(false);
-  const [avatarPreview,  setAvatarPreview]  = useState("");
-  const [showPassForm,   setShowPassForm]   = useState(false);
-  const [passForm,       setPassForm]       = useState({ current: "", next: "", confirm: "" });
-  const [showPass,       setShowPass]       = useState({ current: false, next: false, confirm: false });
-  const [savingPass,     setSavingPass]     = useState(false);
+  const [stats,           setStats]           = useState({ enrollments: 0, courses: 0 });
+  const [saving,          setSaving]          = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError,     setAvatarError]     = useState("");
+  const [toast,           setToast]           = useState(null);
+  const [editMode,        setEditMode]        = useState(false);
+  const [showPassForm,    setShowPassForm]    = useState(false);
+  const [passForm,        setPassForm]        = useState({ current: "", next: "", confirm: "" });
+  const [showPass,        setShowPass]        = useState({ current: false, next: false, confirm: false });
+  const [savingPass,      setSavingPass]      = useState(false);
 
   const fileRef = useRef();
 
-  // Load user into form
   useEffect(() => {
     if (!user) return;
     setForm({
@@ -68,27 +68,22 @@ const Profile = () => {
       expertise:       user.expertise       || "",
       yearsExperience: user.yearsExperience || "",
     });
-    setAvatarPreview(user.avatarUrl || "");
   }, [user]);
 
   // Fetch stats
   useEffect(() => {
     if (!user) return;
     if (user.role === "STUDENT") {
-      API.get("/enrollments/my")
-        .then((r) => {
-          const enrollments = Array.isArray(r.data) ? r.data : [];
-          setStats((p) => ({ ...p, enrollments: enrollments.length }));
-        })
-        .catch(console.error);
+      API.get("/enrollments/my").then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        setStats((p) => ({ ...p, enrollments: list.length }));
+      }).catch(console.error);
     }
     if (user.role === "INSTRUCTOR") {
-      API.get("/courses/instructor/my-courses")
-        .then((r) => {
-          const courses = Array.isArray(r.data) ? r.data : [];
-          setStats((p) => ({ ...p, courses: courses.length }));
-        })
-        .catch(console.error);
+      API.get("/courses/instructor/my-courses").then((r) => {
+        const list = Array.isArray(r.data) ? r.data : [];
+        setStats((p) => ({ ...p, courses: list.length }));
+      }).catch(console.error);
     }
   }, [user]);
 
@@ -97,32 +92,43 @@ const Profile = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Avatar upload
+  // ── Avatar upload ─────────────────────────────────────────
   const handleAvatarChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    setAvatarError("");
     setUploadingAvatar(true);
     try {
+      // 1. Upload to Cloudinary
       const url = await uploadToCloudinary(file);
-      setAvatarPreview(url);
-      // Immediately save avatar
-      const res = await API.patch("/users/profile", { avatarUrl: url });
-      if (setUser) setUser((p) => ({ ...p, avatarUrl: url }));
+
+      // 2. Save to backend
+      await API.patch("/users/me", { avatarUrl: url });
+
+      // 3. Update context + localStorage so navbar reflects immediately
+      updateUser({ avatarUrl: url });
+
       showToast("Avatar updated!");
-    } catch {
-      showToast("Failed to upload avatar", "error");
+    } catch (err) {
+      const msg = err.message || "Failed to upload avatar";
+      setAvatarError(msg);
+      showToast(msg, "error");
+      console.error("Avatar upload error:", err);
     } finally {
       setUploadingAvatar(false);
+      // reset file input so same file can be re-selected
+      if (fileRef.current) fileRef.current.value = "";
     }
   };
 
-  // Save profile
+  // ── Save profile ──────────────────────────────────────────
   const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
     try {
       const payload = {
-        fullName:  form.fullName,
+        fullName:  form.fullName  || undefined,
         bio:       form.bio       || undefined,
         phone:     form.phone     || undefined,
         ...(user.role === "STUDENT"    ? { learningGoal: form.learningGoal || undefined } : {}),
@@ -131,8 +137,8 @@ const Profile = () => {
           yearsExperience: form.yearsExperience ? Number(form.yearsExperience) : undefined,
         } : {}),
       };
-      const res = await API.patch("/users/me", payload);
-      if (setUser) setUser((p) => ({ ...p, ...payload }));
+      await API.patch("/users/me", payload);
+      updateUser(payload);   // ← updates navbar name too
       setEditMode(false);
       showToast("Profile saved!");
     } catch (err) {
@@ -142,15 +148,11 @@ const Profile = () => {
     }
   };
 
-  // Change password
+  // ── Change password ───────────────────────────────────────
   const handleChangePassword = async (e) => {
     e.preventDefault();
-    if (passForm.next !== passForm.confirm) {
-      showToast("New passwords don't match", "error"); return;
-    }
-    if (passForm.next.length < 6) {
-      showToast("Password must be at least 6 characters", "error"); return;
-    }
+    if (passForm.next !== passForm.confirm) { showToast("New passwords don't match", "error"); return; }
+    if (passForm.next.length < 6)           { showToast("Password must be at least 6 characters", "error"); return; }
     setSavingPass(true);
     try {
       await API.patch("/users/change-password", {
@@ -169,14 +171,8 @@ const Profile = () => {
 
   if (!user) return null;
 
-  const badge = roleBadge[user.role] || roleBadge.STUDENT;
-
-  const initials = user.fullName
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const badge    = roleBadge[user.role] || roleBadge.STUDENT;
+  const initials = user.fullName?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
   return (
     <Layout>
@@ -190,30 +186,30 @@ const Profile = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10 pt-28 space-y-6">
 
-          {/* ── Profile hero card ── */}
+          {/* Profile hero */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
-            {/* Cover */}
             <div className="h-28 bg-gradient-to-r from-blue-600 via-blue-700 to-violet-700 relative">
               <div className="absolute inset-0 opacity-20"
-                style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
+                style={{ backgroundImage: "radial-gradient(circle at 20% 50%, white 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
             </div>
 
             <div className="px-6 pb-6">
-              {/* Avatar row */}
               <div className="flex items-end justify-between -mt-12 mb-4">
+                {/* Avatar */}
                 <div className="relative">
                   <div className="w-24 h-24 rounded-2xl border-4 border-white shadow-lg overflow-hidden bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center">
                     {uploadingAvatar ? (
                       <Loader2 size={28} className="animate-spin text-white" />
-                    ) : avatarPreview ? (
-                      <img src={avatarPreview} alt={user.fullName} className="w-full h-full object-cover" />
+                    ) : user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt={user.fullName} className="w-full h-full object-cover" />
                     ) : (
                       <span className="text-white font-black text-2xl">{initials}</span>
                     )}
                   </div>
                   <button
-                    onClick={() => fileRef.current?.click()}
+                    onClick={() => { setAvatarError(""); fileRef.current?.click(); }}
                     className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 rounded-xl flex items-center justify-center shadow-md transition"
+                    title="Upload avatar"
                   >
                     <Camera size={14} className="text-white" />
                   </button>
@@ -223,16 +219,16 @@ const Profile = () => {
                 <button
                   onClick={() => setEditMode(!editMode)}
                   className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm transition
-                    ${editMode
-                      ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      : "bg-blue-600 text-white hover:bg-blue-700"
-                    }`}
+                    ${editMode ? "bg-slate-100 text-slate-600 hover:bg-slate-200" : "bg-blue-600 text-white hover:bg-blue-700"}`}
                 >
                   {editMode ? <><X size={14} /> Cancel</> : <><Edit3 size={14} /> Edit Profile</>}
                 </button>
               </div>
 
-              {/* Name & badge */}
+              {avatarError && (
+                <p className="text-xs text-red-500 font-semibold mb-3 bg-red-50 px-3 py-2 rounded-xl">{avatarError}</p>
+              )}
+
               <div className="space-y-1">
                 <div className="flex items-center gap-3 flex-wrap">
                   <h1 className="text-2xl font-black text-slate-900">{user.fullName}</h1>
@@ -248,17 +244,13 @@ const Profile = () => {
             </div>
           </div>
 
-          {/* ── Stats ── */}
+          {/* Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {user.role === "STUDENT" && (
               <>
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
                   <p className="text-2xl font-black text-blue-600">{stats.enrollments}</p>
                   <p className="text-xs text-slate-400 font-semibold mt-1">Enrolled Courses</p>
-                </div>
-                <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
-                  <p className="text-2xl font-black text-emerald-600">{stats.completed}</p>
-                  <p className="text-xs text-slate-400 font-semibold mt-1">Completed</p>
                 </div>
                 <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
                   <p className="text-2xl font-black text-amber-500">🏆</p>
@@ -276,10 +268,6 @@ const Profile = () => {
                   <p className="text-2xl font-black text-violet-600">{user.yearsExperience || "—"}</p>
                   <p className="text-xs text-slate-400 font-semibold mt-1">Years Experience</p>
                 </div>
-                <div className="bg-white rounded-2xl border border-slate-100 p-4 text-center shadow-sm">
-                  <p className="text-2xl font-black text-emerald-600 truncate text-base pt-1">{user.expertise || "—"}</p>
-                  <p className="text-xs text-slate-400 font-semibold mt-1">Expertise</p>
-                </div>
               </>
             )}
             {user.role === "ADMIN" && (
@@ -293,7 +281,7 @@ const Profile = () => {
             )}
           </div>
 
-          {/* ── Edit / View form ── */}
+          {/* Edit / view form */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
@@ -310,71 +298,47 @@ const Profile = () => {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Full Name *</label>
-                    <input
-                      value={form.fullName}
-                      onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                      required
-                    />
+                    <input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" required />
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Phone</label>
-                    <input
-                      value={form.phone}
-                      onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                    <input value={form.phone} onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
                       placeholder="+1 234 567 8900"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    />
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
                   </div>
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1.5">Bio</label>
-                  <textarea
-                    rows={3}
-                    value={form.bio}
-                    onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
+                  <textarea rows={3} value={form.bio} onChange={(e) => setForm((p) => ({ ...p, bio: e.target.value }))}
                     placeholder="Tell others a bit about yourself..."
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition"
-                  />
+                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition" />
                 </div>
-
                 {user.role === "STUDENT" && (
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1.5">Learning Goal</label>
-                    <input
-                      value={form.learningGoal}
-                      onChange={(e) => setForm((p) => ({ ...p, learningGoal: e.target.value }))}
+                    <input value={form.learningGoal} onChange={(e) => setForm((p) => ({ ...p, learningGoal: e.target.value }))}
                       placeholder="What do you want to achieve?"
-                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                    />
+                      className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
                   </div>
                 )}
-
                 {user.role === "INSTRUCTOR" && (
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-bold text-slate-600 mb-1.5">Expertise</label>
-                      <input
-                        value={form.expertise}
-                        onChange={(e) => setForm((p) => ({ ...p, expertise: e.target.value }))}
-                        placeholder="e.g. React, Node.js, Python"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                      />
+                      <input value={form.expertise} onChange={(e) => setForm((p) => ({ ...p, expertise: e.target.value }))}
+                        placeholder="e.g. React, Node.js"
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
                     </div>
                     <div>
                       <label className="block text-xs font-bold text-slate-600 mb-1.5">Years of Experience</label>
-                      <input
-                        type="number" min="0"
-                        value={form.yearsExperience}
+                      <input type="number" min="0" value={form.yearsExperience}
                         onChange={(e) => setForm((p) => ({ ...p, yearsExperience: e.target.value }))}
                         placeholder="e.g. 5"
-                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                      />
+                        className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
                     </div>
                   </div>
                 )}
-
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => setEditMode(false)}
                     className="flex-1 border border-slate-200 rounded-xl py-2.5 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
@@ -390,17 +354,17 @@ const Profile = () => {
             ) : (
               <div className="space-y-4">
                 {[
-                  { icon: <User size={14} />,   label: "Full Name",  value: user.fullName },
-                  { icon: <Mail size={14} />,   label: "Email",      value: user.email    },
-                  { icon: <Phone size={14} />,  label: "Phone",      value: user.phone    },
+                  { icon: <User size={14} />,     label: "Full Name",         value: user.fullName        },
+                  { icon: <Mail size={14} />,     label: "Email",             value: user.email           },
+                  { icon: <Phone size={14} />,    label: "Phone",             value: user.phone           },
                   ...(user.role === "STUDENT" ? [
                     { icon: <Target size={14} />,   label: "Learning Goal", value: user.learningGoal },
                   ] : []),
                   ...(user.role === "INSTRUCTOR" ? [
-                    { icon: <Briefcase size={14} />, label: "Expertise",          value: user.expertise },
-                    { icon: <Award size={14} />,     label: "Years Experience",    value: user.yearsExperience ? `${user.yearsExperience} years` : null },
+                    { icon: <Briefcase size={14} />, label: "Expertise",        value: user.expertise },
+                    { icon: <Award size={14} />,     label: "Years Experience", value: user.yearsExperience ? `${user.yearsExperience} years` : null },
                   ] : []),
-                ].map(({ icon, label, value }) => value ? (
+                ].filter((f) => f.value).map(({ icon, label, value }) => (
                   <div key={label} className="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
                     <span className="text-slate-400 shrink-0">{icon}</span>
                     <div>
@@ -408,12 +372,12 @@ const Profile = () => {
                       <p className="text-sm text-slate-700 font-semibold">{value}</p>
                     </div>
                   </div>
-                ) : null)}
+                ))}
               </div>
             )}
           </div>
 
-          {/* ── Change Password ── */}
+          {/* Change password */}
           <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
@@ -425,10 +389,8 @@ const Profile = () => {
                   <p className="text-xs text-slate-400">Keep your account secure</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowPassForm(!showPassForm)}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 transition"
-              >
+              <button onClick={() => setShowPassForm(!showPassForm)}
+                className="text-xs font-bold text-blue-600 hover:text-blue-700 transition">
                 {showPassForm ? "Cancel" : "Change"}
               </button>
             </div>
@@ -436,8 +398,8 @@ const Profile = () => {
             {showPassForm && (
               <form onSubmit={handleChangePassword} className="space-y-3">
                 {[
-                  { key: "current", label: "Current Password"  },
-                  { key: "next",    label: "New Password"       },
+                  { key: "current", label: "Current Password"   },
+                  { key: "next",    label: "New Password"        },
                   { key: "confirm", label: "Confirm New Password" },
                 ].map(({ key, label }) => (
                   <div key={key}>
