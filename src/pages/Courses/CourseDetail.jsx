@@ -5,7 +5,7 @@ import {
   ShoppingCart, Zap, Award, FileText, Video,
   Loader2, Trophy, Target, HelpCircle, AlertCircle,
 } from "lucide-react";
-import Layout from "../shared/Layout/Layout";
+import Layout from "../../shared/Layout/Layout";
 import { useAuth } from "../Context/AuthContext";
 import API from "../services/api";
 
