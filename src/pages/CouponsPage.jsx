@@ -6,8 +6,9 @@ import {
   ToggleLeft, ToggleRight, AlertCircle, ChevronRight,
   ArrowLeft, Calendar, Users, Percent, Info, Eye,
 } from "lucide-react";
-import Layout from "../../shared/Layout/Layout";
-import API from "../../services/api";
+import API from "../services/api";
+import Layout from "../shared/Layout/Layout";
+
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Never";
