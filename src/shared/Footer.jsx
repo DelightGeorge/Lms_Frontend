@@ -1,114 +1,211 @@
-import React from "react";
-import { Globe, Twitter, Linkedin, Facebook, Youtube, ArrowRight } from "lucide-react";
+import React, { useState } from "react";
+import { Mail, MapPin, Phone, ArrowRight, Linkedin, Twitter, Facebook, Instagram, Github } from "lucide-react";
 
 const Footer = () => {
+  const [email, setEmail] = useState("");
+  const [subscribed, setSubscribed] = useState(false);
+
+  const handleSubscribe = (e) => {
+    e.preventDefault();
+    if (email.trim()) {
+      setSubscribed(true);
+      setEmail("");
+      setTimeout(() => setSubscribed(false), 3000);
+    }
+  };
+
+  const footerLinks = {
+    Platform: [
+      { label: "Browse Courses", href: "#" },
+      { label: "For Instructors", href: "#" },
+      { label: "For Businesses", href: "#" },
+      { label: "Pricing", href: "#" },
+    ],
+    Company: [
+      { label: "About Us", href: "#" },
+      { label: "Careers", href: "#" },
+      { label: "Blog", href: "#" },
+      { label: "Press Kit", href: "#" },
+    ],
+    Resources: [
+      { label: "Help Center", href: "#" },
+      { label: "Community", href: "#" },
+      { label: "Documentation", href: "#" },
+      { label: "API Reference", href: "#" },
+    ],
+    Legal: [
+      { label: "Terms of Service", href: "#" },
+      { label: "Privacy Policy", href: "#" },
+      { label: "Cookie Policy", href: "#" },
+      { label: "Contact Us", href: "#" },
+    ],
+  };
+
+  const socials = [
+    { Icon: Twitter, href: "#", label: "Twitter" },
+    { Icon: Linkedin, href: "#", label: "LinkedIn" },
+    { Icon: Facebook, href: "#", label: "Facebook" },
+    { Icon: Instagram, href: "#", label: "Instagram" },
+    { Icon: Github, href: "#", label: "GitHub" },
+  ];
+
   return (
-    <footer className="bg-[#0f172a] text-slate-300 pt-12 md:pt-20 pb-10 mt-24">
-      <div className="max-w-[1440px] mx-auto px-6">
+    <footer className="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 text-slate-300 relative overflow-hidden">
+      {/* Decorative elements */}
+      <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/5 blur-3xl rounded-full pointer-events-none" />
 
-        {/* 1. NEWSLETTER / PRE-FOOTER SECTION */}
-{/* 1. NEWSLETTER / PRE-FOOTER SECTION */}
-<div className="bg-blue-600 rounded-3xl p-6 md:p-12 mb-12 md:mb-20 flex flex-col lg:flex-row items-center lg:items-start justify-center lg:justify-between gap-6 lg:gap-8 shadow-2xl shadow-blue-900/20">
-  
-  {/* Text */}
-  <div className="max-w-md text-center lg:text-left">
-    <h3 className="text-xl md:text-2xl font-bold text-white mb-2">
-      Ready to master a new skill?
-    </h3>
-    <p className="text-blue-100 text-sm md:text-base">
-      Join 5,000+ students getting weekly career tips and course discounts.
-    </p>
-  </div>
+      <div className="relative">
+        {/* Newsletter Section */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-12 md:pt-16 pb-12 md:pb-16 border-b border-slate-800/50">
+          <div className="grid md:grid-cols-2 gap-8 lg:gap-12 items-center">
+            {/* Text */}
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-amber-400 uppercase tracking-widest">Stay Updated</p>
+              <h3 className="text-3xl md:text-4xl font-black text-white leading-tight">
+                Never miss a new course
+              </h3>
+              <p className="text-slate-400 text-base leading-relaxed max-w-md">
+                Get weekly course recommendations, exclusive discounts, and career tips delivered to your inbox.
+              </p>
+            </div>
 
-  {/* Input + Button */}
-  <div className="flex flex-col sm:flex-row w-full max-w-md gap-3 mt-4 lg:mt-0">
-    <input 
-      type="email" 
-      placeholder="Enter your email" 
-      className="flex-1 bg-white px-4 py-3 rounded-2xl text-slate-900 text-sm md:text-base outline-none placeholder:text-slate-400"
-    />
-    <button className="bg-slate-900 hover:bg-slate-800 text-white px-6 py-3 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 text-sm md:text-base w-full sm:w-auto">
-      Subscribe <ArrowRight size={16} />
-    </button>
-  </div>
-</div>
+            {/* Subscribe form */}
+            <form onSubmit={handleSubscribe} className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
+                className="flex-1 bg-white/8 border border-white/10 rounded-lg px-4 py-3.5 text-white text-sm outline-none focus:border-amber-400/50 focus:bg-white/12 transition-all placeholder:text-slate-500 backdrop-blur-sm"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white px-6 py-3.5 rounded-lg font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-600/30 hover:shadow-xl active:scale-95 whitespace-nowrap"
+              >
+                {subscribed ? "✓ Subscribed" : "Subscribe"}
+                {!subscribed && <ArrowRight size={16} />}
+              </button>
+            </form>
+          </div>
+        </div>
 
+        {/* Main Footer Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 md:py-16">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mb-12">
+            {/* Brand column */}
+            <div className="col-span-2 md:col-span-3 lg:col-span-1 space-y-6">
+              <a href="/" className="inline-flex items-center gap-2 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-amber-700 rounded-lg flex items-center justify-center text-white font-black text-lg group-hover:scale-110 transition-transform duration-300 shadow-lg shadow-amber-600/30">
+                  L
+                </div>
+                <span className="text-lg font-black text-white tracking-tight">
+                  LMS<span className="text-amber-400 italic ml-1">ELITE</span>
+                </span>
+              </a>
 
-        {/* 2. MAIN NAVIGATION GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 md:gap-12 mb-12 md:mb-16">
-          
-          {/* Brand Column */}
-          <div className="col-span-1 sm:col-span-2 lg:col-span-2 space-y-6 text-center sm:text-left">
-            <a href="/" className="text-2xl font-black tracking-tight text-white flex items-center justify-center sm:justify-start gap-2">
-              <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center text-sm italic">L</div>
-              LMS<span className="text-blue-400">PRO</span>
+              <p className="text-sm text-slate-400 leading-relaxed max-w-xs">
+                Premium online learning platform connecting ambitious professionals with world-class instructors and real-world skills.
+              </p>
+
+              {/* Social links */}
+              <div className="flex items-center gap-3">
+                {socials.map(({ Icon, href, label }) => (
+                  <a
+                    key={label}
+                    href={href}
+                    aria-label={label}
+                    className="w-10 h-10 rounded-lg bg-white/5 border border-white/10 hover:bg-amber-500/20 hover:border-amber-500/30 flex items-center justify-center text-slate-400 hover:text-amber-400 transition-all duration-300 group"
+                  >
+                    <Icon size={18} />
+                  </a>
+                ))}
+              </div>
+            </div>
+
+            {/* Footer columns */}
+            {Object.entries(footerLinks).map(([title, links]) => (
+              <div key={title} className="space-y-4">
+                <h4 className="font-bold text-white text-sm uppercase tracking-wider">{title}</h4>
+                <ul className="space-y-2.5">
+                  {links.map((link) => (
+                    <li key={link.label}>
+                      <a
+                        href={link.href}
+                        className="text-sm text-slate-400 hover:text-amber-400 transition-colors duration-200 inline-block"
+                      >
+                        {link.label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Contact section */}
+          <div className="grid md:grid-cols-3 gap-6 py-8 border-t border-slate-800/50">
+            <a href="mailto:support@lmspro.com" className="flex items-start gap-3 group hover:translate-x-1 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0 mt-0.5 group-hover:bg-amber-500/20">
+                <Mail size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Email</p>
+                <p className="text-sm text-white font-semibold">support@lmspro.com</p>
+              </div>
             </a>
-            <p className="text-sm leading-relaxed max-w-sm mx-auto sm:mx-0">
-              We provide world-class learning experiences with industry experts. 
-              Our mission is to make education accessible and career-focused for everyone, everywhere.
-            </p>
-            <div className="flex justify-center sm:justify-start gap-4">
-              {[Twitter, Linkedin, Facebook, Youtube].map((Icon, i) => (
-                <a key={i} href="#" className="w-10 h-10 rounded-full border border-slate-700 flex items-center justify-center hover:bg-blue-500 hover:border-blue-500 hover:text-white transition-all">
-                  <Icon size={18} />
-                </a>
-              ))}
+
+            <a href="tel:+1234567890" className="flex items-start gap-3 group hover:translate-x-1 transition-transform duration-300">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0 mt-0.5 group-hover:bg-amber-500/20">
+                <Phone size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Phone</p>
+                <p className="text-sm text-white font-semibold">+1 (234) 567-890</p>
+              </div>
+            </a>
+
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400 flex-shrink-0 mt-0.5">
+                <MapPin size={18} />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-0.5">Location</p>
+                <p className="text-sm text-white font-semibold">San Francisco, CA</p>
+              </div>
             </div>
           </div>
-
-          {/* Links Columns */}
-          <FooterColumn 
-            title="Platform" 
-            links={["LMS Business", "Teach on LMS", "Get the App", "About us"]} 
-          />
-          <FooterColumn 
-            title="Resources" 
-            links={["Careers", "Blog", "Help & Support", "Affiliate"]} 
-          />
-          <FooterColumn 
-            title="Legal" 
-            links={["Terms", "Privacy Policy", "Cookie Settings", "Sitemap"]} 
-          />
         </div>
 
-        {/* 3. BOTTOM BAR */}
-        <div className="pt-6 border-t border-slate-800 flex flex-col md:flex-row justify-between items-center gap-4 md:gap-6 text-center md:text-left">
-          <div className="flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-6">
-            <button className="flex items-center gap-2 text-sm font-semibold hover:text-white transition-colors justify-center md:justify-start">
-              <Globe size={16} className="text-blue-400" />
-              English
-            </button>
-            <p className="text-xs text-slate-500">
-              © 2026 LMS PRO, Inc. All rights reserved.
-            </p>
-          </div>
-          
-          <div className="flex flex-wrap justify-center md:justify-start gap-4 md:gap-6 text-[11px] font-bold uppercase tracking-widest text-slate-500">
-            <span className="hover:text-blue-400 cursor-pointer transition-colors">Status</span>
-            <span className="hover:text-blue-400 cursor-pointer transition-colors">Security</span>
-            <span className="hover:text-blue-400 cursor-pointer transition-colors">Contact</span>
+        {/* Bottom bar */}
+        <div className="border-t border-slate-800/50 py-6 md:py-8">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="text-sm text-slate-500 text-center md:text-left">
+                © 2026 LMS ELITE, Inc. All rights reserved. Crafted with excellence.
+              </div>
+
+              <div className="flex items-center gap-6 flex-wrap justify-center">
+                <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors duration-200">
+                  Status
+                </a>
+                <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors duration-200">
+                  Security
+                </a>
+                <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors duration-200">
+                  Accessibility
+                </a>
+                <a href="#" className="text-xs text-slate-400 hover:text-amber-400 transition-colors duration-200">
+                  Sitemap
+                </a>
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
     </footer>
   );
 };
-
-// Helper component for clean mapping
-const FooterColumn = ({ title, links }) => (
-  <div className="space-y-4 text-center sm:text-left">
-    <h4 className="font-bold text-white text-sm uppercase tracking-wider">{title}</h4>
-    <ul className="space-y-2">
-      {links.map((link) => (
-        <li key={link}>
-          <a href="#" className="text-sm hover:text-blue-400 transition-colors">
-            {link}
-          </a>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
 
 export default Footer;
