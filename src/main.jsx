@@ -22,6 +22,11 @@ import VerifyEmail from "./pages/VerifyEmail.jsx";
 import PaymentVerify from "./pages/PaymentVerify.jsx";
 import { AuthProvider } from "./Context/AuthContext.jsx";
 import Profile from "./pages/Profile.jsx";
+import WalletPage from "./pages/WalletPage.jsx";
+import PaymentCallbackPage from "./pages/PaymentCallbackPage.jsx";
+import CheckoutPage from "./pages/Checkout.jsx";
+import CouponsPage from "./pages/CouponsPage.jsx";
+import AdminPayoutsPage from "./pages/AdminPayoutsPage.jsx";
 
 const router = createBrowserRouter([
   {
@@ -41,6 +46,11 @@ const router = createBrowserRouter([
       { path: "cart", element: <Cart /> },
       { path: "notifications", element: <Notifications /> },
       { path: "payment/verify", element: <PaymentVerify /> },
+      { path: "/checkout", element: <CheckoutPage /> },
+      { path: "/payment/callback", element: <PaymentCallbackPage /> },
+      { path: "/instructor/wallet", element: <WalletPage /> },
+      { path: "/instructor/coupons", element: <CouponsPage /> },
+      { path: "/admin/payouts", element: <AdminPayoutsPage /> },
       {
         path: "categories/",
         element: <Categories />,
