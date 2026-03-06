@@ -6,7 +6,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import { CheckCircle, XCircle, Loader2, BookOpen, ArrowRight, Home } from "lucide-react";
-import API from "../../services/api";
+import API from "../services/api";
+
 
 const PaymentCallbackPage = () => {
   const [searchParams] = useSearchParams();

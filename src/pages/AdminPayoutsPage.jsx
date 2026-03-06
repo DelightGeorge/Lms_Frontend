@@ -6,7 +6,8 @@ import {
   ChevronRight, ArrowLeft, DollarSign, Clock, Users,
   Search, Filter, Eye, ShieldCheck, RefreshCw, BarChart3,
 } from "lucide-react";
-import API from "../../services/api";
+import API from "../services/api";
+
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmt     = (n) => `$${(n || 0).toFixed(2)}`;

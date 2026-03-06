@@ -9,9 +9,10 @@ import {
   Lock, Star, Users, BookOpen, Clock, ChevronRight, ArrowLeft,
   Zap, DollarSign,
 } from "lucide-react";
-import Layout from "../../shared/Layout/Layout";
-import API from "../../services/api";
-import { useAuth } from "../../Context/AuthContext";
+import API from "../services/api";
+import Layout from "../shared/Layout/Layout";
+import { useAuth } from "../Context/AuthContext";
+
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmt = (n) => `$${(n || 0).toFixed(2)}`;
