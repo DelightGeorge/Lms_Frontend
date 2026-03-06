@@ -1,18 +1,25 @@
+import React from "react";
 import Footer from "../Footer";
 import Navbar from "../Navbar/Navbar";
+import FloatingActionBar from "../FloatingActionBar/FloatingActionBar";
 
+const Layout = ({ children, hideFloatingBar = false }) => {
+  return (
+    <div className="min-h-screen flex flex-col">
+      <Navbar />
+      
+      <main className="flex-grow">
+        {children}
+      </main>
 
+      {/* Floating action bar - shown on all pages except checkout pages */}
+      {!hideFloatingBar && (
+        <FloatingActionBar hideOnPages={["/cart", "/checkout", "/payment", "/auth"]} />
+      )}
 
-const Layout = ({ children }) => {
-    return (
-        <div className="min-h-screen flex flex-col">
-            <Navbar />
-            <main className="flex-grow">
-                {children}
-            </main>
-            <Footer />
-        </div>
-    );
-}
- 
+      <Footer />
+    </div>
+  );
+};
+
 export default Layout;
