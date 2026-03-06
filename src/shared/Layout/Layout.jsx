@@ -1,7 +1,8 @@
 import React from "react";
 import Footer from "../Footer";
 import Navbar from "../Navbar/Navbar";
-import FloatingActionBar from "../FloatingActionBar/FloatingActionBar";
+import FloatingActionBar from "../../Components/FloatingActionBar/FloatingActionBar";
+
 
 const Layout = ({ children, hideFloatingBar = false }) => {
   return (
