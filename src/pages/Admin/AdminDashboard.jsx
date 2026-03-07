@@ -25,7 +25,7 @@ import {
   rejectCourse,
   markNotificationAsRead,
   getPendingCoursesCount,
-} from "../services/notificationService";
+} from "../../services/notificationService";
 import Layout from "../../shared/Layout/Layout";
 import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
