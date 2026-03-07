@@ -27,6 +27,8 @@ import PaymentCallbackPage from "./pages/PaymentCallbackPage.jsx";
 import CheckoutPage from "./pages/Checkout.jsx";
 import CouponsPage from "./pages/CouponsPage.jsx";
 import AdminPayoutsPage from "./pages/AdminPayoutsPage.jsx";
+import InstructorApplicationPage from "./pages/InstructorApplicationPage.jsx";
+import AdminInstructorApplicationsPage from "./pages/AdminInstructorApplicationsPage.jsx";
 
 const router = createBrowserRouter([
   {
@@ -51,6 +53,11 @@ const router = createBrowserRouter([
       { path: "/instructor/wallet", element: <WalletPage /> },
       { path: "/instructor/coupons", element: <CouponsPage /> },
       { path: "/admin/payouts", element: <AdminPayoutsPage /> },
+      { path: "/become-instructor", element: <InstructorApplicationPage /> },
+      {
+        path: "/admin/instructor-applications",
+        element: <AdminInstructorApplicationsPage />,
+      },
       {
         path: "categories/",
         element: <Categories />,
