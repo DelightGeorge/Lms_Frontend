@@ -148,7 +148,7 @@ const AdminDashboard = () => {
     } catch (error) {
       showToast(
         error.response?.data?.message || "Failed to approve course",
-        "error"
+        "error",
       );
     } finally {
       setApprovingId(null);
@@ -164,9 +164,11 @@ const AdminDashboard = () => {
     setRejectingId(showRejectModal.id);
     try {
       await rejectCourse(showRejectModal.id, rejectReason);
-      setPendingCourses(pendingCourses.filter((c) => c.id !== showRejectModal.id));
+      setPendingCourses(
+        pendingCourses.filter((c) => c.id !== showRejectModal.id),
+      );
       showToast(
-        `"${showRejectModal.title}" rejected. Instructor will be notified.`
+        `"${showRejectModal.title}" rejected. Instructor will be notified.`,
       );
       setShowRejectModal(null);
       setRejectReason("");
@@ -181,7 +183,7 @@ const AdminDashboard = () => {
     } catch (error) {
       showToast(
         error.response?.data?.message || "Failed to reject course",
-        "error"
+        "error",
       );
     } finally {
       setRejectingId(null);
@@ -326,7 +328,8 @@ const AdminDashboard = () => {
                     Pending Course Approvals
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {filteredCourses.length} course{filteredCourses.length !== 1 ? "s" : ""} waiting for review
+                    {filteredCourses.length} course
+                    {filteredCourses.length !== 1 ? "s" : ""} waiting for review
                   </p>
                 </div>
               </div>
@@ -341,7 +344,10 @@ const AdminDashboard = () => {
             {/* Search & Filter */}
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
                 <input
                   type="text"
                   placeholder="Search by course title or instructor..."
@@ -362,7 +368,10 @@ const AdminDashboard = () => {
               </div>
             ) : filteredCourses.length === 0 ? (
               <div className="text-center py-12">
-                <CheckCircle size={48} className="text-emerald-300 mx-auto mb-4" />
+                <CheckCircle
+                  size={48}
+                  className="text-emerald-300 mx-auto mb-4"
+                />
                 <p className="text-slate-600 font-semibold">
                   {searchTerm
                     ? "No courses match your search"
@@ -420,7 +429,9 @@ const AdminDashboard = () => {
                     {/* Actions */}
                     <div className="flex gap-2 shrink-0">
                       <button
-                        onClick={() => handleApproveCourse(course.id, course.title)}
+                        onClick={() =>
+                          handleApproveCourse(course.id, course.title)
+                        }
                         disabled={approvingId === course.id}
                         className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition"
                       >
@@ -467,7 +478,8 @@ const AdminDashboard = () => {
                   Recent Notifications
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  {notifications.length} notification{notifications.length !== 1 ? "s" : ""}
+                  {notifications.length} notification
+                  {notifications.length !== 1 ? "s" : ""}
                 </p>
               </div>
             </div>
@@ -569,7 +581,9 @@ const AdminDashboard = () => {
                 ) : (
                   <X size={16} />
                 )}
-                {rejectingId === showRejectModal.id ? "Rejecting..." : "Reject Course"}
+                {rejectingId === showRejectModal.id
+                  ? "Rejecting..."
+                  : "Reject Course"}
               </button>
             </div>
           </div>
