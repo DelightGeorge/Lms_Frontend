@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
-import Layout from "../shared/Layout/Layout";
-import { useAuth } from "../Context/AuthContext";
+
 import {
   AlertCircle,
   CheckCircle,
@@ -18,7 +17,7 @@ import {
   X,
   ClipboardCheck,
 } from "lucide-react";
-import API from "../services/api";
+
 import {
   getPendingCourses,
   getAdminNotifications,
@@ -27,6 +26,9 @@ import {
   markNotificationAsRead,
   getPendingCoursesCount,
 } from "../services/notificationService";
+import Layout from "../../shared/Layout/Layout";
+import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
