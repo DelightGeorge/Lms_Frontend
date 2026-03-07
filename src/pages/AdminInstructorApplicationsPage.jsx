@@ -6,9 +6,10 @@ import {
   ExternalLink, AlertCircle, ChevronDown, ChevronUp, Filter,
   UserCheck, UserX, Users, RefreshCw
 } from "lucide-react";
-import Layout from "../../shared/Layout/Layout";
-import { useAuth } from "../../Context/AuthContext";
-import API from "../../services/api";
+import Layout from "../shared/Layout/Layout";
+import API from "../services/api";
+import { useAuth } from "../Context/AuthContext";
+
 
 const timeAgo = (d) => {
   const s = Math.floor((Date.now() - new Date(d)) / 1000);

@@ -7,9 +7,10 @@ import {
   Briefcase, BookOpen, User, Clock, Award, ChevronRight,
   ExternalLink, Info,
 } from "lucide-react";
-import Layout from "../shared/Layout/Layout";
 import { useAuth } from "../Context/AuthContext";
+import Layout from "../shared/Layout/Layout";
 import API from "../services/api";
+
 
 // ── Upload helper — uses a simple URL input (works with Cloudinary/S3 links)
 // In production, swap the URL input for an actual file upload widget
