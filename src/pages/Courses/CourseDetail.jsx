@@ -4,11 +4,13 @@ import {
   Play, Lock, CheckCircle, X, BookOpen, Users, Star,
   Zap, Award, FileText, Video, Loader2, Trophy, Target,
   HelpCircle, AlertCircle, ChevronRight, ArrowLeft,
-  Share2, Globe, ShieldCheck, Flame, TrendingUp,
+  Share2, Globe, ShieldCheck, Flame, TrendingUp, MessageCircle,
 } from "lucide-react";
+
 import Layout from "../../shared/Layout/Layout";
 import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
+import LessonComments from "../../Components/LessonComments";
 
 // ─── tiny helpers ────────────────────────────────────────────────────────────
 const fmt  = (n) => (n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
@@ -563,9 +565,10 @@ const CourseDetail = () => {
   if (!course) return null;
 
   const tabs = [
-    { key: "curriculum", label: "Curriculum", count: lessons.length,                icon: BookOpen  },
-    { key: "quizzes",    label: "Quizzes",    count: null,                           icon: HelpCircle },
-    { key: "reviews",    label: "Reviews",    count: course._count?.reviews || null, icon: Star      },
+    { key: "curriculum",  label: "Curriculum",  count: lessons.length,                icon: BookOpen      },
+    { key: "quizzes",     label: "Quizzes",      count: null,                           icon: HelpCircle    },
+    { key: "reviews",     label: "Reviews",      count: course._count?.reviews || null, icon: Star          },
+    { key: "discussion",  label: "Discussion",   count: null,                           icon: MessageCircle },
   ];
 
   return (
@@ -655,7 +658,7 @@ const CourseDetail = () => {
                   <Award size={14} /> Certificate Earned
                 </div>
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => { setCelebration(false); navigate("/StudentDashboard"); }}
+                  <button onClick={() => { setCelebration(false); navigate(`/certificate/${id}`); }}
                     className="w-full py-3.5 bg-white text-orange-600 rounded-2xl font-black hover:bg-orange-50 transition text-sm">
                     View Certificate
                   </button>
@@ -790,8 +793,14 @@ const CourseDetail = () => {
                       })}
                     </div>
                   )}
-                  {activeTab === "quizzes"  && <QuizSection courseId={id} canAccess={canAccess} />}
-                  {activeTab === "reviews"  && <ReviewsSection courseId={id} canAccess={canAccess} userId={user?.id} />}
+                  {activeTab === "quizzes"    && <QuizSection courseId={id} canAccess={canAccess} />}
+                  {activeTab === "reviews"    && <ReviewsSection courseId={id} canAccess={canAccess} userId={user?.id} />}
+                  {activeTab === "discussion" && (
+                    <LessonComments
+                      lessonId={selectedLesson?.id || lessons[0]?.id}
+                      courseInstructorId={course?.instructor?.id}
+                    />
+                  )}
                 </div>
               </div>
             </div>
@@ -1046,6 +1055,18 @@ const CourseDetail = () => {
                     <h2 className="text-xl font-black text-slate-900 mb-1">Student Reviews</h2>
                     <p className="text-xs text-slate-400 mb-6">Enroll to leave your review</p>
                     <ReviewsSection courseId={id} canAccess={false} userId={user?.id} />
+                  </div>
+                )}
+
+                {activeTab === "discussion" && (
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 mb-1">Discussion</h2>
+                    <p className="text-xs text-slate-400 mb-6">Enroll to join the course discussion</p>
+                    <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-12 text-center">
+                      <MessageCircle size={40} className="text-slate-300 mx-auto mb-3" />
+                      <p className="text-slate-500 font-semibold text-sm">Discussion is available to enrolled students</p>
+                      <p className="text-slate-400 text-xs mt-1">Ask questions and learn from fellow students</p>
+                    </div>
                   </div>
                 )}
               </div>

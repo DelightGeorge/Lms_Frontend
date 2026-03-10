@@ -29,6 +29,8 @@ import CouponsPage from "./pages/CouponsPage.jsx";
 import AdminPayoutsPage from "./pages/AdminPayoutsPage.jsx";
 import InstructorApplicationPage from "./pages/InstructorApplicationPage.jsx";
 import AdminInstructorApplicationsPage from "./pages/AdminInstructorApplicationsPage.jsx";
+import CertificatePage from "./pages/CertificatePage.jsx";
+import StudentProfilePage from "./pages/Student/StudentProfilePage.jsx";
 
 const router = createBrowserRouter([
   {
@@ -54,6 +56,9 @@ const router = createBrowserRouter([
       { path: "/instructor/coupons", element: <CouponsPage /> },
       { path: "/admin/payouts", element: <AdminPayoutsPage /> },
       { path: "/become-instructor", element: <InstructorApplicationPage /> },
+      { path: "/certificate/:courseId", element: <CertificatePage /> },
+      { path: "/student-profile", element: <StudentProfilePage /> },
+      { path: "/student-profile/:userId", element: <StudentProfilePage /> },
       {
         path: "/admin/instructor-applications",
         element: <AdminInstructorApplicationsPage />,

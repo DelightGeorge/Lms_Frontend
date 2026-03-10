@@ -3,8 +3,9 @@ import { Link, useNavigate, useLocation } from "react-router-dom";
 import Layout from "../../shared/Layout/Layout";
 import {
   BookOpen, Clock, Award, TrendingUp, Play,
-  ChevronRight, Star, Zap, CheckCircle, GraduationCap,
-  Target, RefreshCw, Flame, BarChart2, ArrowRight,
+  ChevronRight, Loader2, Star, Zap,
+  CheckCircle, GraduationCap, Target, RefreshCw,
+  Flame, BarChart2, Lock, User,
 } from "lucide-react";
 import { getMyEnrollments } from "../../services/enrollmentService";
 import { getAllCourses } from "../../services/courseService";
@@ -19,20 +20,16 @@ const placeholderImgs = [
 ];
 const getImg = (course, idx) => course?.thumbnail || placeholderImgs[idx % placeholderImgs.length];
 
-// ── Progress Ring ─────────────────────────────────────
+// ── Progress Ring ─────────────────────────────────────────
 const ProgressRing = ({ pct, size = 52 }) => {
-  const r = (size - 8) / 2;
+  const r    = (size - 8) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
   return (
     <svg width={size} height={size} className="-rotate-90" style={{ minWidth: size }}>
-      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth="5" />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        fill="none"
-        stroke={pct === 100 ? "#10b981" : "#f59e0b"}
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#e2e8f0" strokeWidth="5" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none"
+        stroke={pct === 100 ? "#10b981" : "#3b82f6"}
         strokeWidth="5"
         strokeDasharray={`${dash} ${circ}`}
         strokeLinecap="round"
@@ -42,40 +39,41 @@ const ProgressRing = ({ pct, size = 52 }) => {
   );
 };
 
-// ── Stat Card ─────────────────────────────────────
+// ── Stat Card ─────────────────────────────────────────────
 const StatCard = ({ icon: Icon, label, value, accent, sub }) => (
-  <div className="bg-white/70 backdrop-blur-sm rounded-2xl border border-white/60 p-6 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all group">
+  <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm hover:shadow-md transition group">
     <div className="flex items-center gap-3 mb-3">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${accent} shadow-lg group-hover:scale-110 transition-transform duration-300`}>
-        <Icon size={22} className="text-white" />
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent} shadow-md`}>
+        <Icon size={18} className="text-white" />
       </div>
-      <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">{label}</p>
+      <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{label}</p>
     </div>
-    <p className="text-3xl font-black text-slate-900 leading-none">{value}</p>
-    {sub && <p className="text-xs text-slate-500 mt-2">{sub}</p>}
+    <p className="text-3xl font-black text-slate-800 leading-none">{value}</p>
+    {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
   </div>
 );
 
-// ── Progress Bar ─────────────────────────────────
-const ProgressBar = ({ pct, color = "from-amber-500 to-amber-600" }) => (
-  <div className="w-full bg-slate-200/60 rounded-full h-2 overflow-hidden">
-    <div className={`bg-gradient-to-r ${color} h-2 rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
+// ── Mini progress bar ────────────────────────────────────
+const ProgressBar = ({ pct, color = "bg-blue-500" }) => (
+  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+    <div className={`${color} h-1.5 rounded-full transition-all duration-700`} style={{ width: `${pct}%` }} />
   </div>
 );
 
-// ── MAIN ──────────────────────────────────────────
+// ── MAIN ──────────────────────────────────────────────────
 const StudentDashboard = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { user }      = useAuth();
+  const navigate      = useNavigate();
+  const location      = useLocation();
 
-  const [enrollments, setEnrollments] = useState([]);
-  const [recommended, setRecommended] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingRec, setLoadingRec] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [enrollments,  setEnrollments]  = useState([]);
+  const [recommended,  setRecommended]  = useState([]);
+  const [loading,      setLoading]      = useState(true);
+  const [loadingRec,   setLoadingRec]   = useState(true);
+  const [refreshing,   setRefreshing]   = useState(false);
 
-  // Fetch enrollments
+  // ── Fetch enrollments ─────────────────────────────────
+  // Using useCallback so we can call it manually on refresh too
   const fetchEnrollments = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
     else setLoading(true);
@@ -90,23 +88,22 @@ const StudentDashboard = () => {
     }
   }, []);
 
-  // Re-fetch on page visit
+  // Re-fetch every time this page is navigated to
+  // (handles post-payment redirect, post-enrollment, etc.)
   useEffect(() => {
-    if (!user) {
-      navigate("/auth");
-      return;
-    }
+    if (!user) { navigate("/auth"); return; }
     fetchEnrollments();
-  }, [user, location.key]);
+  }, [user, location.key]); // location.key changes on every navigation
 
   // Fetch recommended courses
   useEffect(() => {
     if (!user) return;
     getAllCourses()
       .then((r) => {
-        const all = Array.isArray(r.data) ? r.data : [];
+        const all       = Array.isArray(r.data) ? r.data : [];
         const published = all.filter((c) => c.status === "PUBLISHED");
         const enrolledIds = new Set(enrollments.map((e) => e.courseId));
+        // Filter out already enrolled, pick up to 4
         const recs = published.filter((c) => !enrolledIds.has(c.id)).slice(0, 4);
         setRecommended(recs.length > 0 ? recs : published.slice(0, 4));
       })
@@ -116,177 +113,151 @@ const StudentDashboard = () => {
 
   if (!user) return null;
 
-  // Derived stats
-  const total = enrollments.length;
-  const completed = enrollments.filter((e) => e.progress === 100).length;
-  const inProgress = enrollments.filter((e) => e.progress > 0 && e.progress < 100).length;
-  const notStarted = enrollments.filter((e) => e.progress === 0).length;
-  const totalLessons = enrollments.reduce((acc, e) => acc + (e.completedLessons || 0), 0);
-  const avgProgress = total > 0 ? Math.round(enrollments.reduce((acc, e) => acc + (e.progress || 0), 0) / total) : 0;
+  // ── Derived stats ────────────────────────────────────
+  const total         = enrollments.length;
+  const completed     = enrollments.filter((e) => e.progress === 100).length;
+  const inProgress    = enrollments.filter((e) => e.progress > 0 && e.progress < 100).length;
+  const notStarted    = enrollments.filter((e) => e.progress === 0).length;
+  const totalLessons  = enrollments.reduce((acc, e) => acc + (e.completedLessons || 0), 0);
+  const avgProgress   = total > 0
+    ? Math.round(enrollments.reduce((acc, e) => acc + (e.progress || 0), 0) / total)
+    : 0;
 
-  const continueCourse = enrollments.find((e) => e.progress > 0 && e.progress < 100) || enrollments.find((e) => e.progress === 0);
+  // Continue learning = most recent with progress < 100
+  const continueCourse = enrollments.find((e) => e.progress > 0 && e.progress < 100)
+    || enrollments.find((e) => e.progress === 0);
 
   return (
-    <Layout hideFloatingBar={false}>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
-        {/* ── HERO SECTION ── */}
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white px-4 py-16 sm:py-20 relative overflow-hidden">
+    <Layout>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/20">
+
+        {/* ── Hero ── */}
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white px-4 py-12 relative overflow-hidden">
+          {/* Decorative */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute -top-20 -right-20 w-96 h-96 bg-amber-600/10 rounded-full blur-3xl" />
-            <div className="absolute bottom-0 left-1/3 w-80 h-80 bg-blue-600/10 rounded-full blur-3xl" />
+            <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 w-60 h-60 bg-violet-500/10 rounded-full blur-3xl" />
           </div>
 
-          <div className="max-w-7xl mx-auto relative">
-            {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
-              <div className="space-y-3">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/20 border border-amber-500/30">
-                  <GraduationCap size={16} className="text-amber-300" />
-                  <span className="text-xs font-bold text-amber-300 uppercase tracking-widest">Learning Dashboard</span>
+          <div className="max-w-6xl mx-auto relative">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-7 h-7 bg-blue-500/30 rounded-lg flex items-center justify-center">
+                    <GraduationCap size={14} className="text-blue-300" />
+                  </div>
+                  <span className="text-[10px] font-black text-blue-300 uppercase tracking-widest">Student Portal</span>
                 </div>
-                <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-                  Welcome back,{" "}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300">
-                    {user.fullName?.split(" ")[0]}
-                  </span>
+                <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+                  Welcome back, <span className="text-blue-400">{user.fullName?.split(" ")[0]}</span> 👋
                 </h1>
-                <p className="text-slate-300 text-sm sm:text-base max-w-2xl">
+                <p className="text-slate-300 mt-1.5 text-sm">
                   {total === 0
-                    ? "Start your learning journey with our premium course collection"
-                    : `${avgProgress}% progress · ${totalLessons} lessons completed · ${completed} course${completed !== 1 ? "s" : ""} finished`}
+                    ? "Start your learning journey — browse courses below"
+                    : `You're ${avgProgress}% through your learning goals · ${totalLessons} lessons completed`
+                  }
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => fetchEnrollments(true)}
-                  disabled={refreshing}
-                  className="flex items-center gap-2 px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 hover:border-white/30 text-white font-semibold text-sm transition-all disabled:opacity-50"
-                >
-                  <RefreshCw size={16} className={refreshing ? "animate-spin" : ""} />
-                  <span className="hidden sm:inline">Refresh</span>
+              <div className="flex items-center gap-3 shrink-0">
+                <button onClick={() => fetchEnrollments(true)} disabled={refreshing}
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 px-3 py-2 rounded-xl transition">
+                  <RefreshCw size={13} className={refreshing ? "animate-spin" : ""} />
+                  Refresh
                 </button>
-                <Link
-                  to="/courses"
-                  className="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold text-sm transition-all shadow-lg shadow-amber-600/30"
-                >
-                  <Zap size={16} /> Browse
+                <Link to="/student-profile"
+                  className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-xl transition">
+                  <User size={13} /> Profile
+                </Link>
+                <Link to="/courses"
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition shadow-lg shadow-blue-600/30">
+                  <Zap size={15} /> Browse
                 </Link>
               </div>
             </div>
 
-            {/* Overall progress */}
+            {/* Overall progress bar */}
             {total > 0 && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-sm font-bold text-slate-200">Overall Learning Progress</span>
-                  <span className="text-lg font-black text-amber-300">{avgProgress}%</span>
+              <div className="mt-6 bg-white/10 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-slate-300">Overall Progress</span>
+                  <span className="text-xs font-black text-blue-300">{avgProgress}%</span>
                 </div>
-                <ProgressBar pct={avgProgress} color="from-amber-400 to-yellow-400" />
-                <div className="flex items-center justify-between mt-3 text-xs text-slate-300 font-semibold">
-                  <span>✓ {completed} completed</span>
-                  <span>→ {inProgress} in progress</span>
-                  <span>○ {notStarted} not started</span>
+                <div className="w-full bg-white/10 rounded-full h-2">
+                  <div className="bg-gradient-to-r from-blue-400 to-emerald-400 h-2 rounded-full transition-all duration-700"
+                    style={{ width: `${avgProgress}%` }} />
+                </div>
+                <div className="flex items-center justify-between mt-2 text-[10px] text-slate-400 font-medium">
+                  <span>{completed} completed</span>
+                  <span>{inProgress} in progress</span>
+                  <span>{notStarted} not started</span>
                 </div>
               </div>
             )}
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-12">
-          {/* ── STATS ── */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-10">
+
+          {/* ── Stats ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <StatCard
-              icon={BookOpen}
-              label="Enrolled"
-              value={total}
-              accent="bg-gradient-to-br from-blue-500 to-blue-600"
-              sub={`${total} course${total !== 1 ? "s" : ""}`}
-            />
-            <StatCard
-              icon={CheckCircle}
-              label="Completed"
-              value={completed}
-              accent="bg-gradient-to-br from-emerald-500 to-teal-600"
-              sub="100% finished"
-            />
-            <StatCard
-              icon={Flame}
-              label="In Progress"
-              value={inProgress}
-              accent="bg-gradient-to-br from-amber-500 to-orange-600"
-              sub="keep learning"
-            />
-            <StatCard
-              icon={Play}
-              label="Lessons Done"
-              value={totalLessons}
-              accent="bg-gradient-to-br from-violet-500 to-purple-600"
-              sub="completed"
-            />
+            <StatCard icon={BookOpen}    label="Enrolled"     value={total}        accent="bg-blue-500"    sub={total === 1 ? "course" : "courses"} />
+            <StatCard icon={CheckCircle} label="Completed"    value={completed}    accent="bg-emerald-500" sub="100% done" />
+            <StatCard icon={Flame}       label="In Progress"  value={inProgress}   accent="bg-amber-500"   sub="keep going!" />
+            <StatCard icon={Play}        label="Lessons Done" value={totalLessons} accent="bg-violet-500"  sub="total lessons" />
           </div>
 
-          {/* ── CONTINUE LEARNING ── */}
+          {/* ── Continue Learning ── */}
           {continueCourse && (
             <section>
-              <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <Target size={24} className="text-amber-500" /> Continue Learning
+              <h2 className="text-xl font-extrabold text-slate-900 mb-4 flex items-center gap-2">
+                <Target size={20} className="text-blue-500" /> Continue Learning
               </h2>
-              <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm hover:shadow-xl transition-all group">
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden hover:shadow-lg transition group">
                 <div className="flex flex-col sm:flex-row">
-                  <div className="sm:w-80 h-48 sm:h-auto shrink-0 overflow-hidden relative">
-                    <img
-                      src={getImg(continueCourse.course, 0)}
-                      alt={continueCourse.course?.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
+                  <div className="sm:w-64 h-44 sm:h-auto shrink-0 overflow-hidden relative">
+                    <img src={getImg(continueCourse.course, 0)} alt={continueCourse.course?.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent to-black/20" />
                     {continueCourse.progress > 0 && (
-                      <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm text-white text-xs font-black px-3 py-1.5 rounded-lg border border-white/20">
-                        {continueCourse.progress}% Complete
+                      <div className="absolute bottom-3 left-3 bg-black/60 backdrop-blur-sm text-white text-xs font-black px-2.5 py-1 rounded-lg">
+                        {continueCourse.progress}% done
                       </div>
                     )}
                   </div>
-
-                  <div className="flex-1 p-8 flex flex-col justify-between">
-                    <div className="space-y-4">
+                  <div className="flex-1 p-6 flex flex-col justify-between">
+                    <div>
                       {continueCourse.course?.category?.name && (
-                        <span className="text-xs font-black bg-amber-50 text-amber-700 px-3 py-1 rounded-full uppercase tracking-wide w-fit">
+                        <span className="text-[10px] font-black bg-blue-50 text-blue-600 px-2.5 py-1 rounded-full uppercase tracking-wide">
                           {continueCourse.course.category.name}
                         </span>
                       )}
-                      <div>
-                        <h3 className="text-2xl font-black text-slate-900 mb-1">
-                          {continueCourse.course?.title}
-                        </h3>
-                        <p className="text-sm text-slate-500">
-                          by {continueCourse.course?.instructor?.fullName}
-                        </p>
-                      </div>
+                      <h3 className="font-black text-slate-800 text-xl mt-2 mb-1 leading-tight">
+                        {continueCourse.course?.title}
+                      </h3>
+                      <p className="text-sm text-slate-400 mb-4">
+                        by {continueCourse.course?.instructor?.fullName}
+                      </p>
 
-                      <div className="flex items-center gap-6 pt-2">
+                      <div className="flex items-center gap-4 mb-3">
                         <div className="relative">
-                          <ProgressRing pct={continueCourse.progress} size={64} />
-                          <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-amber-600">
+                          <ProgressRing pct={continueCourse.progress} size={56} />
+                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-blue-600">
                             {continueCourse.progress}%
                           </span>
                         </div>
-                        <div className="flex-1 space-y-2">
+                        <div className="flex-1">
                           <ProgressBar pct={continueCourse.progress} />
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-400 mt-1.5">
                             {continueCourse.completedLessons || 0} of {continueCourse.totalLessons || 0} lessons complete
                           </p>
                         </div>
                       </div>
                     </div>
-
-                    <Link
-                      to={`/courses/${continueCourse.courseId}`}
-                      className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-amber-600/20 w-fit mt-4"
-                    >
-                      <Play size={16} />
+                    <Link to={`/courses/${continueCourse.courseId}`}
+                      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition w-fit shadow-md shadow-blue-600/20">
+                      <Play size={14} />
                       {continueCourse.progress === 0 ? "Start Course" : "Continue Learning"}
-                      <ArrowRight size={16} />
                     </Link>
                   </div>
                 </div>
@@ -294,64 +265,58 @@ const StudentDashboard = () => {
             </section>
           )}
 
-          {/* ── MY COURSES ── */}
+          {/* ── My Courses ── */}
           <section>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-5">
               <div>
-                <h2 className="text-2xl font-black text-slate-900">My Courses</h2>
-                <p className="text-sm text-slate-500 mt-1">{total} enrolled</p>
+                <h2 className="text-xl font-extrabold text-slate-900">My Courses</h2>
+                <p className="text-sm text-slate-400">{total} enrolled course{total !== 1 ? "s" : ""}</p>
               </div>
-              <Link
-                to="/courses"
-                className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 transition-colors"
-              >
-                Browse More <ChevronRight size={16} />
+              <Link to="/courses" className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1">
+                Browse more <ChevronRight size={14} />
               </Link>
             </div>
 
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-64 bg-white animate-pulse rounded-2xl border border-slate-100" />
+                {[1,2,3].map((i) => (
+                  <div key={i} className="h-56 bg-white animate-pulse rounded-2xl border border-slate-100" />
                 ))}
               </div>
             ) : enrollments.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 p-16 text-center shadow-sm">
-                <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <BookOpen size={32} className="text-amber-400" />
+              <div className="bg-white rounded-2xl border border-slate-100 p-14 text-center shadow-sm">
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <BookOpen size={28} className="text-blue-400" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 mb-2">No courses yet</h3>
-                <p className="text-slate-500 text-sm mb-6 max-w-xs mx-auto">
-                  Enroll in your first premium course and start your learning journey
+                <h3 className="font-black text-slate-800 text-lg mb-1">No courses yet</h3>
+                <p className="text-slate-400 text-sm mb-6 max-w-xs mx-auto">
+                  Enroll in your first course to start learning and track your progress here.
                 </p>
-                <Link
-                  to="/courses"
-                  className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 text-white px-6 py-3 rounded-xl font-bold text-sm hover:from-amber-400 hover:to-amber-500 transition-all shadow-lg shadow-amber-600/20"
-                >
-                  <Zap size={16} /> Explore Courses
+                <Link to="/courses"
+                  className="inline-flex items-center gap-2 bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:bg-blue-700 transition">
+                  <Zap size={14} /> Explore Courses
                 </Link>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {enrollments.map((e, idx) => (
                   <Link key={e.id} to={`/courses/${e.courseId}`} className="group">
-                    <div className="h-full bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                      <div className="relative h-44 overflow-hidden">
-                        <img
-                          src={getImg(e.course, idx)}
-                          alt={e.course?.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
+                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                      <div className="relative h-40 overflow-hidden">
+                        <img src={getImg(e.course, idx)} alt={e.course?.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
 
+                        {/* Progress overlay */}
                         {e.progress === 100 ? (
-                          <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/90 to-teal-600/90 flex flex-col items-center justify-center backdrop-blur-sm">
-                            <CheckCircle size={36} className="text-white mb-1" />
+                          <div className="absolute inset-0 bg-emerald-500/80 flex flex-col items-center justify-center">
+                            <CheckCircle size={30} className="text-white mb-1" />
                             <span className="text-white text-xs font-black">Completed!</span>
                           </div>
                         ) : (
                           <div className="absolute top-3 right-3">
                             <div className="relative">
-                              <ProgressRing pct={e.progress} size={44} />
+                              <ProgressRing pct={e.progress} size={38} />
                               <span className="absolute inset-0 flex items-center justify-center text-[9px] font-black text-white">
                                 {e.progress}%
                               </span>
@@ -359,30 +324,29 @@ const StudentDashboard = () => {
                           </div>
                         )}
 
+                        {/* Status chip */}
                         <div className="absolute bottom-3 left-3">
-                          <span
-                            className={`text-[9px] font-black px-2.5 py-1 rounded-full backdrop-blur-sm ${
-                              e.progress === 100
-                                ? "bg-emerald-500 text-white"
-                                : e.progress > 0
-                                ? "bg-amber-500 text-white"
-                                : "bg-white/90 text-slate-700"
-                            }`}
-                          >
-                            {e.progress === 100 ? "✓ Done" : e.progress > 0 ? "→ Progress" : "○ Not Started"}
+                          <span className={`text-[9px] font-black px-2 py-1 rounded-full ${
+                            e.progress === 100
+                              ? "bg-emerald-500 text-white"
+                              : e.progress > 0
+                              ? "bg-blue-500 text-white"
+                              : "bg-white/90 text-slate-700"
+                          }`}>
+                            {e.progress === 100 ? "✓ Done" : e.progress > 0 ? "In Progress" : "Not Started"}
                           </span>
                         </div>
                       </div>
 
                       <div className="p-4">
-                        <h3 className="font-black text-slate-900 text-sm line-clamp-2 mb-1 group-hover:text-amber-600 transition-colors">
+                        <h3 className="font-black text-slate-800 text-sm line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
                           {e.course?.title}
                         </h3>
-                        <p className="text-xs text-slate-500 mb-3">{e.course?.instructor?.fullName}</p>
-                        <ProgressBar pct={e.progress} color={e.progress === 100 ? "from-emerald-500 to-teal-600" : "from-amber-500 to-orange-600"} />
-                        <div className="flex items-center justify-between mt-3">
-                          <span className="text-xs text-slate-500">{e.completedLessons || 0}/{e.totalLessons || 0} lessons</span>
-                          <span className="text-xs font-bold text-amber-600">{e.progress}%</span>
+                        <p className="text-xs text-slate-400 mb-3 truncate">{e.course?.instructor?.fullName}</p>
+                        <ProgressBar pct={e.progress} color={e.progress === 100 ? "bg-emerald-500" : "bg-blue-500"} />
+                        <div className="flex items-center justify-between mt-2">
+                          <span className="text-[10px] text-slate-400">{e.completedLessons || 0}/{e.totalLessons || 0} lessons</span>
+                          <span className="text-[10px] font-bold text-blue-600">{e.progress}% complete</span>
                         </div>
                       </div>
                     </div>
@@ -392,69 +356,66 @@ const StudentDashboard = () => {
             )}
           </section>
 
-          {/* ── ANALYTICS ── */}
+          {/* ── Analytics ── */}
           {total > 0 && (
             <section>
-              <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <BarChart2 size={24} className="text-violet-500" /> Learning Analytics
+              <h2 className="text-xl font-extrabold text-slate-900 mb-5 flex items-center gap-2">
+                <BarChart2 size={20} className="text-violet-500" /> Learning Analytics
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* Completion rate */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm hover:shadow-lg transition-all">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">Completion Rate</p>
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-4">Completion Rate</p>
                   <div className="flex items-center gap-4">
                     <div className="relative">
-                      <ProgressRing pct={total > 0 ? Math.round((completed / total) * 100) : 0} size={72} />
-                      <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-emerald-600">
+                      <ProgressRing pct={total > 0 ? Math.round((completed / total) * 100) : 0} size={64} />
+                      <span className="absolute inset-0 flex items-center justify-center text-xs font-black text-emerald-600">
                         {total > 0 ? Math.round((completed / total) * 100) : 0}%
                       </span>
                     </div>
                     <div>
-                      <p className="text-3xl font-black text-slate-900">
-                        {completed}
-                        <span className="text-sm text-slate-400 font-normal">/{total}</span>
-                      </p>
-                      <p className="text-xs text-slate-500 mt-1">courses finished</p>
+                      <p className="text-2xl font-black text-slate-800">{completed}<span className="text-slate-300 font-normal">/{total}</span></p>
+                      <p className="text-xs text-slate-400">courses finished</p>
                     </div>
                   </div>
                 </div>
 
-                {/* Breakdown */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">Status Breakdown</p>
-                  <div className="space-y-4">
+                {/* Course breakdown */}
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-4">Course Breakdown</p>
+                  <div className="space-y-3">
                     {[
-                      { label: "Completed", count: completed, color: "from-emerald-500 to-teal-600" },
-                      { label: "In Progress", count: inProgress, color: "from-amber-500 to-orange-600" },
-                      { label: "Not Started", count: notStarted, color: "from-slate-300 to-slate-400" },
-                    ].map(({ label, count, color }) => (
-                      <div key={label} className="space-y-1.5">
-                        <div className="flex justify-between">
-                          <span className="text-xs text-slate-600 font-semibold">{label}</span>
-                          <span className="text-xs font-black text-slate-800">{count}</span>
+                      { label: "Completed",   count: completed,   color: "bg-emerald-500", pct: total > 0 ? (completed/total)*100 : 0 },
+                      { label: "In Progress", count: inProgress,  color: "bg-blue-500",    pct: total > 0 ? (inProgress/total)*100 : 0 },
+                      { label: "Not Started", count: notStarted,  color: "bg-slate-200",   pct: total > 0 ? (notStarted/total)*100 : 0 },
+                    ].map(({ label, count, color, pct }) => (
+                      <div key={label}>
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs text-slate-500 font-medium">{label}</span>
+                          <span className="text-xs font-black text-slate-700">{count}</span>
                         </div>
-                        <ProgressBar pct={(count / total) * 100} color={color} />
+                        <ProgressBar pct={pct} color={color} />
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Activity */}
-                <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm">
-                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-5">Activity Summary</p>
+                {/* Lesson activity */}
+                <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-sm">
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-4">Activity Summary</p>
                   <div className="space-y-4">
                     <div>
-                      <p className="text-3xl font-black text-slate-900">{totalLessons}</p>
-                      <p className="text-xs text-slate-500 mt-1">total lessons completed</p>
+                      <p className="text-3xl font-black text-slate-800">{totalLessons}</p>
+                      <p className="text-xs text-slate-400">total lessons completed</p>
                     </div>
                     <div>
-                      <p className="text-2xl font-black text-amber-600">{avgProgress}%</p>
-                      <p className="text-xs text-slate-500 mt-1">average progress</p>
+                      <p className="text-2xl font-black text-blue-600">{avgProgress}%</p>
+                      <p className="text-xs text-slate-400">average course progress</p>
                     </div>
                     {completed > 0 && (
-                      <div className="bg-emerald-50 rounded-xl p-3 flex items-center gap-2">
-                        <Award size={16} className="text-emerald-600 shrink-0" />
-                        <p className="text-xs font-bold text-emerald-700">{completed} certificate{completed > 1 ? "s" : ""}</p>
+                      <div className="bg-emerald-50 rounded-xl p-2.5 flex items-center gap-2">
+                        <Award size={14} className="text-emerald-500 shrink-0" />
+                        <p className="text-xs font-bold text-emerald-700">{completed} certificate{completed > 1 ? "s" : ""} earned</p>
                       </div>
                     )}
                   </div>
@@ -463,92 +424,79 @@ const StudentDashboard = () => {
             </section>
           )}
 
-          {/* ── CERTIFICATES ── */}
+          {/* ── Certificates ── */}
           {completed > 0 && (
             <section>
-              <h2 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-2">
-                <Award size={24} className="text-amber-500" /> Certificates Earned
+              <h2 className="text-xl font-extrabold text-slate-900 mb-5 flex items-center gap-2">
+                <Award size={20} className="text-amber-500" /> Certificates Earned
               </h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {enrollments
-                  .filter((e) => e.progress === 100)
-                  .map((e) => (
-                    <div
-                      key={e.id}
-                      className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md hover:-translate-y-1 transition-all group"
-                    >
-                      <div className="w-14 h-14 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-400/30 group-hover:scale-110 transition-transform">
-                        <Award size={24} className="text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-black text-slate-900 text-sm truncate">{e.course?.title}</p>
-                        <p className="text-xs text-amber-700 font-semibold mt-0.5">Certificate of Completion</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {new Date(e.enrolledAt).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
-                        </p>
-                      </div>
-                      <button className="text-xs font-black text-amber-700 hover:text-amber-800 border border-amber-300 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition shrink-0">
-                        View
-                      </button>
+                {enrollments.filter((e) => e.progress === 100).map((e) => (
+                  <div key={e.id}
+                    className="bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-100 rounded-2xl p-5 flex items-center gap-4 hover:shadow-md transition">
+                    <div className="w-12 h-12 bg-gradient-to-br from-amber-400 to-yellow-500 rounded-xl flex items-center justify-center shrink-0 shadow-lg shadow-amber-400/30">
+                      <Award size={22} className="text-white" />
                     </div>
-                  ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-black text-slate-800 text-sm truncate">{e.course?.title}</p>
+                      <p className="text-xs text-amber-600 font-semibold mt-0.5">Certificate of Completion</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">
+                        Enrolled {new Date(e.enrolledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                      </p>
+                    </div>
+                    <Link
+                      to={`/certificate/${e.courseId}`}
+                      className="text-xs font-black text-amber-600 hover:text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition shrink-0"
+                    >
+                      View
+                    </Link>
+                  </div>
+                ))}
               </div>
             </section>
           )}
 
-          {/* ── RECOMMENDED ── */}
+          {/* ── Recommended ── */}
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                <Star size={24} className="text-amber-400" /> Recommended For You
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2">
+                <Star size={20} className="text-amber-400" /> Recommended For You
               </h2>
-              <Link to="/courses" className="text-sm font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">
-                See all <ChevronRight size={16} />
+              <Link to="/courses" className="text-sm font-bold text-blue-600 hover:underline flex items-center gap-1">
+                See all <ChevronRight size={14} />
               </Link>
             </div>
 
             {loadingRec ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-48 bg-white animate-pulse rounded-2xl border border-slate-100" />
-                ))}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[1,2,3,4].map((i) => <div key={i} className="h-44 bg-white animate-pulse rounded-2xl border border-slate-100" />)}
               </div>
             ) : recommended.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-slate-100 p-12 text-center">
-                <p className="text-slate-500 text-sm">No additional recommendations at this time</p>
+              <div className="bg-white rounded-2xl border border-slate-100 p-10 text-center">
+                <p className="text-slate-400 text-sm">No recommendations yet. Browse all courses!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {recommended.map((course, idx) => (
                   <Link key={course.id} to={`/courses/${course.id}`} className="group">
-                    <div className="h-full bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all">
-                      <div className="relative h-36 overflow-hidden">
-                        <img
-                          src={getImg(course, idx)}
-                          alt={course.title}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute top-3 left-3">
-                          <span className={`text-[9px] font-black px-2.5 py-1 rounded-full backdrop-blur-sm ${
-                            course.price === 0
-                              ? "bg-emerald-500 text-white"
-                              : "bg-white/90 text-slate-700"
-                          }`}>
-                            {course.price === 0 ? "FREE" : `$${course.price}`}
-                          </span>
+                    <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+                      <div className="relative h-32 overflow-hidden">
+                        <img src={getImg(course, idx)} alt={course.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                        <div className="absolute top-2 left-2">
+                          {course.price === 0
+                            ? <span className="bg-emerald-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full">FREE</span>
+                            : <span className="bg-white/90 text-slate-700 text-[9px] font-black px-2 py-0.5 rounded-full">${course.price}</span>
+                          }
                         </div>
                       </div>
-                      <div className="p-4">
-                        <h3 className="font-black text-slate-900 text-xs line-clamp-2 mb-1 group-hover:text-amber-600 transition-colors">
+                      <div className="p-3">
+                        <h3 className="font-black text-slate-800 text-xs line-clamp-2 mb-1 group-hover:text-blue-600 transition-colors">
                           {course.title}
                         </h3>
-                        <p className="text-[10px] text-slate-500 truncate">{course.instructor?.fullName}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{course.instructor?.fullName}</p>
                         {course.category?.name && (
-                          <span className="text-[8px] font-bold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full mt-2 inline-block">
+                          <span className="text-[9px] font-bold bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded-full mt-1.5 inline-block">
                             {course.category.name}
                           </span>
                         )}
@@ -559,6 +507,45 @@ const StudentDashboard = () => {
               </div>
             )}
           </section>
+
+          {/* ── Recent Activity ── */}
+          {enrollments.length > 0 && (
+            <section>
+              <h2 className="text-xl font-extrabold text-slate-900 mb-5 flex items-center gap-2">
+                <Clock size={20} className="text-slate-400" /> Recent Activity
+              </h2>
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="divide-y divide-slate-50">
+                  {enrollments.slice(0, 5).map((e) => (
+                    <div key={e.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition">
+                      <div className="w-11 h-11 rounded-xl overflow-hidden shrink-0 bg-slate-100 shadow-sm">
+                        <img src={getImg(e.course, 0)} alt="" className="w-full h-full object-cover" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-800 text-sm truncate">{e.course?.title}</p>
+                        <p className="text-xs text-slate-400">
+                          Enrolled {new Date(e.enrolledAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <div className="hidden sm:block text-right">
+                          <p className={`text-sm font-black ${e.progress === 100 ? "text-emerald-600" : "text-blue-600"}`}>
+                            {e.progress}%
+                          </p>
+                          <p className="text-[10px] text-slate-400">complete</p>
+                        </div>
+                        <Link to={`/courses/${e.courseId}`}
+                          className="p-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-600 transition">
+                          <ChevronRight size={15} />
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
         </div>
       </div>
     </Layout>
