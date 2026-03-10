@@ -2,15 +2,16 @@
 // Route: /profile  (or /profile/:userId for public profiles)
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext";
-import API from "../../services/api";
-import Layout from "../../shared/Layout/Layout";
+
 import {
   Award, BookOpen, CheckCircle, Star, Zap, Flame,
   Target, TrendingUp, Trophy, Medal, Shield,
   Calendar, ArrowRight, Loader2, GraduationCap,
   BarChart2, Clock, User, Edit3,
 } from "lucide-react";
+import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
+import Layout from "../../shared/Layout/Layout";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 const fmtDate = (d) =>

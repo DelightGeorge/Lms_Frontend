@@ -2,12 +2,13 @@
 // Route: /certificate/:courseId
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext";
-import API from "../../services/api";
+
 import {
   Award, Download, ArrowLeft, CheckCircle, Star,
   Calendar, BookOpen, Loader2, Share2,
 } from "lucide-react";
+import { useAuth } from "../Context/AuthContext";
+import API from "../services/api";
 
 // ── helpers ────────────────────────────────────────────────────────────────
 const fmtDate = (d) =>
