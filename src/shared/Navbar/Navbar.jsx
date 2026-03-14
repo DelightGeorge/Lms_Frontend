@@ -6,8 +6,8 @@ import {
   Flame, Zap, Star, Users, ArrowRight, Loader2,
 } from "lucide-react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
+import { useAuth } from "../../Context/AuthContext";
 
 
 const Navbar = () => {
@@ -34,6 +34,7 @@ const Navbar = () => {
   const [searchResults, setSearchResults] = useState({ courses: [], instructors: [] });
   const [searchLoading, setSearchLoading] = useState(false);
   const [showDropdown,  setShowDropdown]  = useState(false);
+  const [searchFocused,  setSearchFocused]  = useState(false);
   const searchRef = useRef(null);
   const searchTimerRef = useRef(null);
 
@@ -289,10 +290,10 @@ const Navbar = () => {
                 <input
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
-                  onFocus={() => searchQuery.trim() && setShowDropdown(true)}
+                  onFocus={() => { setSearchFocused(true); searchQuery.trim() && setShowDropdown(true); }}
+                  onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
                   placeholder={placeholders[placeholderIdx]}
-                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all"
-                  style={{ color: searchQuery ? undefined : undefined }}
+                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all" 
                 />
                 {searchQuery && (
                   <button type="button" onClick={clearSearch}
@@ -303,7 +304,7 @@ const Navbar = () => {
               </form>
 
               {/* Hint pill — shown when input is empty and focused */}
-              {!searchQuery && !showDropdown && (
+              {!searchQuery && !showDropdown && searchFocused && (
                 <div className="absolute top-full left-0 mt-2 z-[999]">
                   <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-lg rounded-2xl px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
                     <Search size={11} className="text-slate-400 shrink-0" />
