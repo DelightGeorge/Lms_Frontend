@@ -1,16 +1,15 @@
 // src/pages/Student/StudentProfilePage.jsx
 import { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-
+import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
+import Layout from "../../shared/Layout/Layout";
 import {
   Award, BookOpen, CheckCircle, Star, Zap, Flame,
   Target, TrendingUp, Trophy, Medal, Shield,
   Calendar, ArrowRight, Loader2, GraduationCap,
   BarChart2, Edit3, Lock,
 } from "lucide-react";
-import { useAuth } from "../../Context/AuthContext";
-import API from "../../services/api";
-import Layout from "../../shared/Layout/Layout";
 
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" });
@@ -127,71 +126,65 @@ export default function StudentProfilePage() {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen bg-slate-50 pt-16">
 
-        {/* ── Cover strip (purely decorative, no overlap) ─────────────── */}
-        <div className="h-40 bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 relative overflow-hidden mt-16">
-          <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
+        {/* ── Hero — full self-contained section, no overlap ─── */}
+        <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 relative overflow-hidden">
+          <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute inset-0 opacity-[0.07]"
+          <div className="absolute inset-0 opacity-[0.06]"
             style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
-        </div>
-
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-
-          {/* ── Profile identity card ──────────────────────────────────── */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-lg mb-6 overflow-visible" style={{ marginTop: "-3.5rem" }}>
-            <div className="px-6 pt-4 pb-6">
-              <div className="flex flex-col sm:flex-row gap-4 sm:items-end">
-
-                {/* Avatar — lifted above the card top edge */}
-                <div className="relative shrink-0 self-start" style={{ marginTop: "-3rem" }}>
-                  <div className="w-24 h-24 rounded-2xl overflow-hidden border-4 border-white shadow-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
-                    {user?.avatarUrl
-                      ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                      : <span className="text-4xl font-black text-white">{user?.fullName?.[0]}</span>}
-                  </div>
-                  <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-md ${levelCfg}`}>
-                    {level}
-                  </span>
+          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10">
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
+              {/* Avatar */}
+              <div className="relative shrink-0">
+                <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
+                  {user?.avatarUrl
+                    ? <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    : <span className="text-4xl font-black text-white">{user?.fullName?.[0]}</span>}
                 </div>
-
-                {/* Name + meta — starts BELOW the avatar pull-up */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <h1 className="text-2xl font-black text-slate-900 leading-tight">{user?.fullName}</h1>
-                      <p className="text-sm text-slate-400 mt-0.5">{user?.email}</p>
-                    </div>
-                    {isOwn && (
-                      <Link to="/profile"
-                        className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-xl transition shrink-0">
-                        <Edit3 size={13} /> Edit Profile
-                      </Link>
-                    )}
+                <span className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider shadow-lg ${levelCfg}`}>
+                  {level}
+                </span>
+              </div>
+              {/* Name + meta */}
+              <div className="flex-1 min-w-0 text-center sm:text-left">
+                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{user?.fullName}</h1>
+                    <p className="text-slate-400 text-sm mt-1">{user?.email}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2 mt-3">
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
-                      <Trophy size={11} /> {unlocked}/{achievements.length} Achievements
+                  {isOwn && (
+                    <Link to="/profile"
+                      className="self-center sm:self-start flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-xl transition shrink-0">
+                      <Edit3 size={13} /> Edit Profile
+                    </Link>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1.5 rounded-full">
+                    <Trophy size={11} /> {unlocked}/{achievements.length} Achievements
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-300 bg-blue-500/20 border border-blue-400/30 px-3 py-1.5 rounded-full">
+                    <BookOpen size={11} /> {total} Courses
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-300 bg-emerald-500/20 border border-emerald-400/30 px-3 py-1.5 rounded-full">
+                    <CheckCircle size={11} /> {completed} Completed
+                  </span>
+                  {user?.createdAt && (
+                    <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-white/10 border border-white/10 px-3 py-1.5 rounded-full">
+                      <Calendar size={11} /> Since {fmtDate(user.createdAt)}
                     </span>
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-full">
-                      <BookOpen size={11} /> {total} Courses
-                    </span>
-                    <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
-                      <CheckCircle size={11} /> {completed} Completed
-                    </span>
-                    {user?.createdAt && (
-                      <span className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-full">
-                        <Calendar size={11} /> Since {fmtDate(user.createdAt)}
-                      </span>
-                    )}
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
-          {/* ── Stats row ─────────────────────────────────────────────── */}
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-6">
+
+          {/* ── Stats row ─────────────────────────────────────── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <Stat icon={BookOpen}    label="Enrolled"     value={total}             grad="bg-gradient-to-br from-blue-500 to-blue-600"     />
             <Stat icon={CheckCircle} label="Completed"    value={completed}         grad="bg-gradient-to-br from-emerald-500 to-teal-500"  />
@@ -199,25 +192,25 @@ export default function StudentProfilePage() {
             <Stat icon={TrendingUp}  label="Avg Progress" value={`${avgProgress}%`} grad="bg-gradient-to-br from-violet-500 to-purple-600" />
           </div>
 
-          {/* ── Two-column layout ─────────────────────────────────────── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 pb-16">
+          {/* ── Two-column body ────────────────────────────────── */}
+          <div className="flex flex-col lg:flex-row gap-6 pb-16 items-start">
 
-            {/* LEFT */}
-            <div className="space-y-5">
+            {/* LEFT col — fixed width on desktop */}
+            <div className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5">
 
               {/* Progress */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <BarChart2 size={13} className="text-violet-500" /> Progress Overview
                 </h3>
-                <div className="flex items-center gap-4 mb-3">
+                <div className="flex items-center gap-4 mb-2">
                   <div className="relative shrink-0">
                     <Ring pct={avgProgress} size={68} stroke={7} color={avgProgress === 100 ? "#10b981" : "#f59e0b"} />
                     <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-slate-900">
                       {avgProgress}%
                     </span>
                   </div>
-                  <div className="flex-1 space-y-2">
+                  <div className="flex-1 space-y-2.5">
                     {[
                       { label: "Done",        count: completed,                      color: "bg-emerald-500" },
                       { label: "In Progress", count: inProgress,                     color: "bg-amber-400"  },
@@ -269,8 +262,8 @@ export default function StudentProfilePage() {
               </div>
             </div>
 
-            {/* RIGHT */}
-            <div className="lg:col-span-2 space-y-5">
+            {/* RIGHT col — grows to fill remaining space */}
+            <div className="flex-1 min-w-0 space-y-5">
 
               {/* Achievements */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
