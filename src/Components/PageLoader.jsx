@@ -27,9 +27,9 @@ export default function PageLoader() {
 
   useEffect(() => {
     // Start fade after a short delay to ensure styles apply
-    const fadeTimer = setTimeout(() => setFading(true), 120);
+    const fadeTimer = setTimeout(() => setFading(true), 2000);
     // Remove from DOM after fade completes
-    const hideTimer = setTimeout(() => setVisible(false), 600);
+    const hideTimer = setTimeout(() => setVisible(false), 2600);
     return () => { clearTimeout(fadeTimer); clearTimeout(hideTimer); };
   }, []);
 

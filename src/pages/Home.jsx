@@ -1,13 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-
+import Layout from "../shared/Layout/Layout";
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
   User, Home as HomeIcon, ArrowRight, Sparkles, ChevronRight,
   Play, Loader2, GraduationCap, Filter, Clock, Zap, Globe,
 } from "lucide-react";
 import { getAllCourses, getAllCategories } from "../services/courseService";
-import Layout from "../shared/Layout/Layout";
 
 // ── Placeholder images ───────────────────────────────────
 const placeholderImgs = [
