@@ -5,7 +5,7 @@ import {
   GraduationCap, ShieldCheck, Home, TrendingUp,
   Flame, Zap, Star, Users, ArrowRight, Loader2,
 } from "lucide-react";
-import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation, } from "react-router-dom";
 import API from "../../services/api";
 import { useAuth } from "../../Context/AuthContext";
 
