@@ -36,6 +36,7 @@ const Navbar = () => {
   const [showDropdown,  setShowDropdown]  = useState(false);
   const [searchFocused,  setSearchFocused]  = useState(false);
   const searchRef = useRef(null);
+  const mobileSearchRef = useRef(null);
   const searchTimerRef = useRef(null);
 
   const categories = [
@@ -562,31 +563,137 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile search bar — slides down under navbar */}
-        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${searchOpen ? "max-h-20 opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="px-4 pb-3 pt-2 border-t border-slate-100">
+        {/* Mobile search bar — slides down under navbar with live dropdown */}
+        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${searchOpen ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className="px-4 pb-3 pt-2 border-t border-slate-100 relative" ref={mobileSearchRef}>
             <form onSubmit={handleSearch} className="relative">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              {searchLoading
+                ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 animate-spin" size={15} />
+                : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+              }
               <input
                 autoFocus={searchOpen}
                 value={searchQuery}
                 onChange={(e) => handleSearchChange(e.target.value)}
+                onFocus={() => searchQuery.trim() && setShowDropdown(true)}
                 placeholder="Search courses, instructors..."
-                className="w-full bg-slate-100 rounded-xl py-3 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="w-full bg-slate-100 rounded-xl py-3 pl-9 pr-8 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
               />
+              {searchQuery && (
+                <button type="button" onClick={clearSearch}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition">
+                  <X size={13} />
+                </button>
+              )}
             </form>
+
+            {/* Mobile live results */}
+            {showDropdown && (searchResults.courses.length > 0 || searchResults.instructors.length > 0 || searchLoading) && (
+              <div className="mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden max-h-[60vh] overflow-y-auto">
+                {searchLoading ? (
+                  <div className="flex flex-col items-center justify-center py-8 gap-3">
+                    <div className="relative w-9 h-9">
+                      <div className="absolute inset-0 rounded-full border-2 border-blue-100" />
+                      <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
+                      <Search size={12} className="absolute inset-0 m-auto text-blue-400" />
+                    </div>
+                    <p className="text-xs text-slate-400">Finding results…</p>
+                  </div>
+                ) : (
+                  <>
+                    {searchResults.courses.length > 0 && (
+                      <div>
+                        <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                          <BookOpen size={11} className="text-blue-500" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
+                          <span className="ml-auto text-[10px] text-slate-300">{searchResults.courses.length} found</span>
+                        </div>
+                        {searchResults.courses.map((course) => (
+                          <Link key={course.id} to={`/courses/${course.id}`}
+                            onClick={() => { clearSearch(); setSearchOpen(false); }}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl">
+                            <div className="w-10 h-8 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                              {course.thumbnail
+                                ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
+                                : <div className="w-full h-full flex items-center justify-center"><BookOpen size={13} className="text-slate-400" /></div>}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700">{course.title}</p>
+                              {course.instructor?.fullName && (
+                                <p className="text-[10px] text-slate-400 truncate">{course.instructor.fullName}</p>
+                              )}
+                            </div>
+                            <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-lg ${course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-700"}`}>
+                              {course.price === 0 ? "Free" : `$${course.price}`}
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+
+                    {searchResults.instructors.length > 0 && (
+                      <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+                        <div className="flex items-center gap-2 px-4 pt-2 pb-1">
+                          <Users size={11} className="text-indigo-500" />
+                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+                        </div>
+                        {searchResults.instructors.map((inst) => (
+                          <Link key={inst.id} to={`/instructors/${inst.id}`}
+                            onClick={() => { clearSearch(); setSearchOpen(false); }}
+                            className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm">
+                              {inst.avatarUrl
+                                ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                : inst.fullName?.[0]}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700">{inst.fullName}</p>
+                              {inst.expertise && <p className="text-[10px] text-slate-400 truncate">{inst.expertise}</p>}
+                            </div>
+                            <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0">View</span>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+
+                    {searchResults.courses.length === 0 && searchResults.instructors.length === 0 && (
+                      <div className="text-center py-8">
+                        <p className="text-sm font-bold text-slate-400">No results for "{searchQuery}"</p>
+                      </div>
+                    )}
+
+                    {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
+                      <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+                        <div className="flex gap-1">
+                          <Link to={`/courses?search=${encodeURIComponent(searchQuery)}`}
+                            onClick={() => { clearSearch(); setSearchOpen(false); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition">
+                            <BookOpen size={11} /> All courses
+                          </Link>
+                          <Link to={`/instructors?search=${encodeURIComponent(searchQuery)}`}
+                            onClick={() => { clearSearch(); setSearchOpen(false); }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition">
+                            <Users size={11} /> All instructors
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </nav>
 
       {/* Mobile overlay */}
       <div onClick={() => setMobileOpen(false)}
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-40 transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[55] transition-opacity duration-300 lg:hidden ${
           mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`} />
 
       {/* ── Mobile slide-down menu ────────────────────────────── */}
-      <div className={`fixed top-[57px] left-0 right-0 bg-white z-50 shadow-2xl transition-all duration-300 lg:hidden overflow-y-auto max-h-[90vh] ${
+      <div className={`fixed top-[57px] left-0 right-0 bg-white z-[60] shadow-2xl transition-all duration-300 lg:hidden overflow-y-auto max-h-[calc(100dvh-57px-72px)] ${
         mobileOpen ? "translate-y-0 opacity-100" : "-translate-y-3 opacity-0 pointer-events-none"
       }`}>
 

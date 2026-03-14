@@ -1,12 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-import Layout from "../shared/Layout/Layout";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
-  User, Home as HomeIcon, ArrowRight, Sparkles, ChevronRight,
-  Play, Loader2, GraduationCap, Filter, Clock, Zap, Globe,
+  ArrowRight, Sparkles, ChevronRight,
+  Play, Loader2, GraduationCap, Filter, Clock, Zap, Globe, X,
 } from "lucide-react";
 import { getAllCourses, getAllCategories } from "../services/courseService";
+import API from "../services/api";
+import Layout from "../shared/Layout/Layout";
+
 
 // ── Placeholder images ───────────────────────────────────
 const placeholderImgs = [
@@ -123,21 +126,6 @@ const CourseSkeleton = () => (
   </div>
 );
 
-// ── Bottom nav item ───────────────────────────────
-const BottomNavItem = ({ to, icon, label, active }) => (
-  <Link
-    to={to}
-    className={`flex flex-col items-center justify-center gap-1 py-1 flex-1 min-w-0 transition-colors ${
-      active ? "text-amber-600" : "text-slate-400 active:text-amber-500"
-    }`}
-  >
-    <div className={`p-1.5 rounded-xl transition-colors ${active ? "bg-amber-50" : ""}`}>
-      {icon}
-    </div>
-    <span className="text-[10px] font-semibold leading-none truncate">{label}</span>
-  </Link>
-);
-
 // ── Main Home Component ───────────────────────────
 const Home = () => {
   const [courses, setCourses]               = useState([]);
@@ -147,6 +135,14 @@ const Home = () => {
   const [searchInput, setSearchInput]       = useState("");
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [stats, setStats]                   = useState({ courses: 0, students: "2M+", instructors: "800+" });
+
+  // Live search state
+  const [liveResults,   setLiveResults]   = useState({ courses: [], instructors: [] });
+  const [liveLoading,   setLiveLoading]   = useState(false);
+  const [showLive,      setShowLive]      = useState(false);
+  const [heroFocused,   setHeroFocused]   = useState(false);
+  const searchRef  = useRef(null);
+  const debounceRef = useRef(null);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -168,8 +164,39 @@ const Home = () => {
       .catch(console.error);
   }, []);
 
+  // Outside click closes live results
+  useEffect(() => {
+    const fn = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setShowLive(false); };
+    document.addEventListener("mousedown", fn);
+    return () => document.removeEventListener("mousedown", fn);
+  }, []);
+
+  // Debounced live search
+  const handleLiveSearch = useCallback((val) => {
+    setSearchInput(val);
+    clearTimeout(debounceRef.current);
+    if (!val.trim()) { setLiveResults({ courses: [], instructors: [] }); setShowLive(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      setLiveLoading(true);
+      try {
+        const [cRes, iRes] = await Promise.allSettled([
+          API.get(`/courses?search=${encodeURIComponent(val.trim())}&limit=5`),
+          API.get(`/users/instructors?search=${encodeURIComponent(val.trim())}&limit=3`),
+        ]);
+        const courses     = cRes.status === "fulfilled"     ? (cRes.value.data?.courses || cRes.value.data || []).slice(0,5)     : [];
+        const instructors = iRes.status === "fulfilled"     ? (iRes.value.data?.instructors || iRes.value.data || []).slice(0,3) : [];
+        setLiveResults({ courses, instructors });
+        setShowLive(true);
+      } catch (_) {}
+      finally { setLiveLoading(false); }
+    }, 280);
+  }, []);
+
+  const clearLive = () => { setSearchInput(""); setLiveResults({ courses: [], instructors: [] }); setShowLive(false); };
+
   const handleSearch = (e) => {
     e.preventDefault();
+    setShowLive(false);
     setSearchQuery(searchInput);
     setActiveTab("All");
   };
@@ -193,7 +220,7 @@ const Home = () => {
   return (
     <Layout>
       {/* pb-20 gives room for the fixed bottom nav on mobile */}
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/50 pb-20 sm:pb-0 overflow-x-hidden">
+      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/50 overflow-x-hidden">
 
         {/* ── HERO ── */}
         <section className="relative overflow-hidden">
@@ -220,21 +247,124 @@ const Home = () => {
                 </p>
               </div>
 
-              <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2 max-w-lg">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                  <input
-                    value={searchInput}
-                    onChange={(e) => setSearchInput(e.target.value)}
-                    placeholder="Search courses, topics..."
-                    className="w-full bg-white/8 border border-white/15 rounded-xl py-4 pl-12 pr-4 outline-none focus:border-amber-400/50 focus:bg-white/12 transition placeholder:text-slate-400 text-sm text-white backdrop-blur-sm"
-                  />
-                </div>
-                <button type="submit"
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold py-4 px-8 rounded-xl shadow-xl shadow-amber-600/30 whitespace-nowrap text-sm transition-all duration-300 active:scale-95">
-                  Explore
-                </button>
-              </form>
+              <div ref={searchRef} className="relative max-w-lg w-full">
+                <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    {liveLoading
+                      ? <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 animate-spin z-10" size={17} />
+                      : <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={17} />}
+                    <input
+                      value={searchInput}
+                      onChange={(e) => handleLiveSearch(e.target.value)}
+                      onFocus={() => { setHeroFocused(true); searchInput.trim() && setShowLive(true); }}
+                      onBlur={() => setTimeout(() => setHeroFocused(false), 150)}
+                      placeholder="Search courses or find an instructor..."
+                      className="w-full bg-white/8 border border-white/15 rounded-xl py-4 pl-12 pr-10 outline-none focus:border-amber-400/50 focus:bg-white/12 transition placeholder:text-slate-400 text-sm text-white backdrop-blur-sm"
+                    />
+                    {searchInput && (
+                      <button type="button" onClick={clearLive}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition z-10">
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <button type="submit"
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold py-4 px-8 rounded-xl shadow-xl shadow-amber-600/30 whitespace-nowrap text-sm transition-all duration-300 active:scale-95">
+                    Explore
+                  </button>
+                </form>
+
+                {/* Live results dropdown */}
+                {showLive && (searchInput.trim()) && (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden max-h-[420px] overflow-y-auto">
+                    {liveLoading ? (
+                      <div className="flex flex-col items-center justify-center py-8 gap-2">
+                        <div className="relative w-8 h-8">
+                          <div className="absolute inset-0 rounded-full border-2 border-amber-100" />
+                          <div className="absolute inset-0 rounded-full border-2 border-t-amber-500 animate-spin" />
+                          <Search size={12} className="absolute inset-0 m-auto text-amber-400" />
+                        </div>
+                        <p className="text-xs text-slate-400">Finding results…</p>
+                      </div>
+                    ) : (
+                      <>
+                        {liveResults.courses.length > 0 && (
+                          <div>
+                            <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                              <BookOpen size={11} className="text-amber-500" />
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
+                              <span className="ml-auto text-[10px] text-slate-300">{liveResults.courses.length} found</span>
+                            </div>
+                            {liveResults.courses.map((course) => (
+                              <Link key={course.id} to={`/courses/${course.id}`}
+                                onClick={clearLive}
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50 transition group border-l-2 border-transparent hover:border-amber-500 mx-1 rounded-r-xl">
+                                <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-sm">
+                                  {course.thumbnail
+                                    ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
+                                    : <div className="w-full h-full flex items-center justify-center bg-amber-50"><BookOpen size={13} className="text-amber-300" /></div>}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-slate-800 truncate group-hover:text-amber-700 transition-colors">{course.title}</p>
+                                  <p className="text-[10px] text-slate-400 mt-0.5">{course.instructor?.fullName}</p>
+                                </div>
+                                <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-lg ${course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-700"}`}>
+                                  {course.price === 0 ? "Free" : `$${course.price}`}
+                                </span>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                        {liveResults.instructors.length > 0 && (
+                          <div className={liveResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+                            <div className="flex items-center gap-2 px-4 pt-2 pb-1">
+                              <Users size={11} className="text-indigo-500" />
+                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+                            </div>
+                            {liveResults.instructors.map((inst) => (
+                              <Link key={inst.id} to={`/instructors/${inst.id}`}
+                                onClick={clearLive}
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
+                                <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm ring-2 ring-white shadow-sm">
+                                  {inst.avatarUrl ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" /> : inst.fullName?.[0]}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700">{inst.fullName}</p>
+                                  <p className="text-[10px] text-slate-400 truncate">{inst.expertise || "Instructor"}{inst._count?.courses ? ` · ${inst._count.courses} courses` : ""}</p>
+                                </div>
+                                <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-indigo-100 transition">View</span>
+                              </Link>
+                            ))}
+                          </div>
+                        )}
+                        {liveResults.courses.length === 0 && liveResults.instructors.length === 0 && (
+                          <div className="text-center py-10">
+                            <Search size={22} className="text-slate-200 mx-auto mb-2" />
+                            <p className="text-sm font-bold text-slate-400">No results for "{searchInput}"</p>
+                            <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+                          </div>
+                        )}
+                        {(liveResults.courses.length > 0 || liveResults.instructors.length > 0) && (
+                          <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+                            <div className="flex gap-1">
+                              <Link to={`/courses?search=${encodeURIComponent(searchInput)}`}
+                                onClick={clearLive}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition">
+                                <BookOpen size={11} /> All courses
+                              </Link>
+                              <Link to={`/instructors?search=${encodeURIComponent(searchInput)}`}
+                                onClick={clearLive}
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition">
+                                <Users size={11} /> All instructors
+                              </Link>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
 
               <div className="pt-4 grid grid-cols-3 gap-4 max-w-md">
                 <div className="text-center">
@@ -432,40 +562,6 @@ const Home = () => {
             </div>
           </section>
         </main>
-
-        {/* ── MOBILE BOTTOM NAV ─────────────────────────────────────────────
-            Fixed to the bottom. Uses grid-cols-4 so each item gets exactly
-            equal width — no squeezing or clipping on any screen size.
-            pb-safe ensures it clears the iOS home indicator.
-        ── */}
-        <nav className="fixed bottom-0 inset-x-0 z-50 sm:hidden bg-white/97 backdrop-blur-md border-t border-slate-100 shadow-[0_-4px_24px_rgba(0,0,0,0.06)]">
-          <div className="grid grid-cols-4 px-2 py-2 pb-[env(safe-area-inset-bottom,8px)]">
-            <BottomNavItem
-              to="/"
-              icon={<HomeIcon size={21} />}
-              label="Home"
-              active={location.pathname === "/"}
-            />
-            <BottomNavItem
-              to="/courses"
-              icon={<BookOpen size={21} />}
-              label="Courses"
-              active={location.pathname === "/courses"}
-            />
-            <BottomNavItem
-              to="/instructors"
-              icon={<Users size={21} />}
-              label="Instructors"
-              active={location.pathname.startsWith("/instructors")}
-            />
-            <BottomNavItem
-              to="/student-profile"
-              icon={<User size={21} />}
-              label="Profile"
-              active={location.pathname.startsWith("/student-profile") || location.pathname === "/profile"}
-            />
-          </div>
-        </nav>
       </div>
     </Layout>
   );
