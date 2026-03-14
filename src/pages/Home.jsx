@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import API from "../services/api";
 import Layout from "../shared/Layout/Layout";
-import { getAllCourses } from "../services/courseService";
+import { getAllCategories, getAllCourses } from "../services/courseService";
 
 
 // ── Placeholder images ───────────────────────────────────
