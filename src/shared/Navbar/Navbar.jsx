@@ -6,9 +6,8 @@ import {
   Flame, Zap, Star, Users, ArrowRight, Loader2,
 } from "lucide-react";
 import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
-import API from "../../services/api";
 import { useAuth } from "../../Context/AuthContext";
-
+import API from "../../services/api";
 
 
 const Navbar = () => {
@@ -21,7 +20,16 @@ const Navbar = () => {
   const [profileOpen, setProfileOpen] = useState(false);
   const [cartCount,   setCartCount]   = useState(0);
   const [notifCount,  setNotifCount]  = useState(0);
-  const [searchQuery,   setSearchQuery]   = useState("");
+  const [searchQuery,     setSearchQuery]     = useState("");
+  const [placeholderIdx,  setPlaceholderIdx]  = useState(0);
+  const [placeholderFade, setPlaceholderFade] = useState(true);
+  const placeholders = [
+    "Search courses...",
+    "Find an instructor...",
+    "Try 'React', 'Python'...",
+    "Explore by topic...",
+    "Who teaches design?",
+  ];
   const [searchOpen,    setSearchOpen]    = useState(false);
   const [searchResults, setSearchResults] = useState({ courses: [], instructors: [] });
   const [searchLoading, setSearchLoading] = useState(false);
@@ -64,6 +72,19 @@ const Navbar = () => {
     setSearchOpen(false);
     setShowDropdown(false);
   }, [location.pathname]);
+
+  // Cycle placeholder text
+  useEffect(() => {
+    if (searchQuery) return;
+    const id = setInterval(() => {
+      setPlaceholderFade(false);
+      setTimeout(() => {
+        setPlaceholderIdx(i => (i + 1) % placeholders.length);
+        setPlaceholderFade(true);
+      }, 200);
+    }, 2800);
+    return () => clearInterval(id);
+  }, [searchQuery]);
 
   // ── Cart count (students only, re-fetch on route change) ──
   useEffect(() => {
@@ -261,13 +282,17 @@ const Navbar = () => {
 
             <div ref={searchRef} className="relative flex-1">
               <form onSubmit={handleSearch}>
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" size={15} />
+                {searchLoading
+                  ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10 animate-spin" size={15} />
+                  : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" size={15} />
+                }
                 <input
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => searchQuery.trim() && setShowDropdown(true)}
-                  placeholder="Search courses, instructors..."
-                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all placeholder:text-slate-400"
+                  placeholder={placeholders[placeholderIdx]}
+                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all"
+                  style={{ color: searchQuery ? undefined : undefined }}
                 />
                 {searchQuery && (
                   <button type="button" onClick={clearSearch}
@@ -277,75 +302,153 @@ const Navbar = () => {
                 )}
               </form>
 
-              {/* Live search dropdown */}
+              {/* Hint pill — shown when input is empty and focused */}
+              {!searchQuery && !showDropdown && (
+                <div className="absolute top-full left-0 mt-2 z-[999]">
+                  <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-lg rounded-2xl px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
+                    <Search size={11} className="text-slate-400 shrink-0" />
+                    <span>Search <span className="font-bold text-slate-700">courses</span> or find an <span className="font-bold text-slate-700">instructor</span> by name</span>
+                    <span className="ml-1 bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono text-[10px]">↵</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Live results dropdown */}
               {showDropdown && (searchResults.courses.length > 0 || searchResults.instructors.length > 0 || searchLoading) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden max-h-[480px] overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden"
+                  style={{ maxHeight: "520px", overflowY: "auto" }}>
+
                   {searchLoading ? (
-                    <div className="flex items-center justify-center py-8 gap-2 text-slate-400 text-sm">
-                      <Loader2 size={16} className="animate-spin" /> Searching…
+                    <div className="flex flex-col items-center justify-center py-10 gap-3">
+                      <div className="relative w-10 h-10">
+                        <div className="absolute inset-0 rounded-full border-2 border-blue-100" />
+                        <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
+                        <Search size={14} className="absolute inset-0 m-auto text-blue-400" />
+                      </div>
+                      <p className="text-xs text-slate-400 font-medium">Finding results…</p>
                     </div>
                   ) : (
                     <>
-                      {/* Courses */}
+                      {/* ── Courses section ── */}
                       {searchResults.courses.length > 0 && (
                         <div>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1.5">Courses</p>
+                          <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                            <BookOpen size={11} className="text-blue-500" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
+                            <span className="ml-auto text-[10px] text-slate-300 font-medium">{searchResults.courses.length} found</span>
+                          </div>
                           {searchResults.courses.map((course) => (
                             <Link key={course.id} to={`/courses/${course.id}`}
                               onClick={clearSearch}
-                              className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition group">
-                              <div className="w-10 h-10 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl">
+                              {/* Thumbnail */}
+                              <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-sm">
                                 {course.thumbnail
                                   ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-                                  : <div className="w-full h-full flex items-center justify-center"><BookOpen size={16} className="text-slate-400" /></div>}
+                                  : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100">
+                                      <BookOpen size={14} className="text-slate-400" />
+                                    </div>}
                               </div>
+                              {/* Info */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{course.title}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">
-                                  {course.instructor?.fullName && `by ${course.instructor.fullName} · `}
-                                  {course.price === 0 ? "Free" : `$${course.price}`}
+                                <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700 transition-colors leading-tight">
+                                  {course.title}
                                 </p>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {course.instructor?.fullName && (
+                                    <span className="text-[10px] text-slate-400 truncate">
+                                      {course.instructor.fullName}
+                                    </span>
+                                  )}
+                                  {course._count?.enrollments > 0 && (
+                                    <span className="text-[10px] text-slate-300 flex items-center gap-0.5 shrink-0">
+                                      <Users size={8} /> {course._count.enrollments}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <ArrowRight size={13} className="text-slate-300 group-hover:text-blue-500 shrink-0 transition" />
+                              {/* Price badge */}
+                              <span className={`text-[11px] font-black shrink-0 px-2 py-0.5 rounded-lg ${
+                                course.price === 0
+                                  ? "bg-emerald-50 text-emerald-600"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}>
+                                {course.price === 0 ? "Free" : `$${course.price}`}
+                              </span>
                             </Link>
                           ))}
                         </div>
                       )}
 
-                      {/* Instructors */}
+                      {/* ── Instructors section ── */}
                       {searchResults.instructors.length > 0 && (
-                        <div className={searchResults.courses.length > 0 ? "border-t border-slate-100" : ""}>
-                          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-4 pt-3 pb-1.5">Instructors</p>
-                          {searchResults.instructors.map((instructor) => (
-                            <Link key={instructor.id} to={`/instructors/${instructor.id}`}
+                        <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+                          <div className="flex items-center gap-2 px-4 pt-2 pb-1">
+                            <Users size={11} className="text-indigo-500" />
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+                            <span className="ml-auto text-[10px] text-slate-300 font-medium">{searchResults.instructors.length} found</span>
+                          </div>
+                          {searchResults.instructors.map((inst) => (
+                            <Link key={inst.id} to={`/instructors/${inst.id}`}
                               onClick={clearSearch}
-                              className="flex items-center gap-3 px-4 py-3 hover:bg-blue-50 transition group">
-                              <div className="w-10 h-10 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm">
-                                {instructor.avatarUrl
-                                  ? <img src={instructor.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                  : instructor.fullName?.[0]}
+                              className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
+                              {/* Avatar */}
+                              <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm ring-2 ring-white shadow-sm">
+                                {inst.avatarUrl
+                                  ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
+                                  : inst.fullName?.[0]}
                               </div>
+                              {/* Info */}
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{instructor.fullName}</p>
-                                <p className="text-[10px] text-slate-400 mt-0.5">
-                                  {instructor.expertise || "Instructor"}
-                                  {instructor._count?.courses ? ` · ${instructor._count.courses} courses` : ""}
+                                <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors leading-tight">
+                                  {inst.fullName}
                                 </p>
+                                <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                  {inst.expertise && (
+                                    <span className="text-[10px] text-slate-400 truncate">{inst.expertise}</span>
+                                  )}
+                                  {inst._count?.courses > 0 && (
+                                    <span className="text-[10px] text-indigo-400 font-bold shrink-0 flex items-center gap-0.5">
+                                      <BookOpen size={8} /> {inst._count.courses} course{inst._count.courses !== 1 ? "s" : ""}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              <ArrowRight size={13} className="text-slate-300 group-hover:text-blue-500 shrink-0 transition" />
+                              {/* View profile badge */}
+                              <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-indigo-100 transition">
+                                View
+                              </span>
                             </Link>
                           ))}
                         </div>
                       )}
 
-                      {/* See all */}
-                      <div className="border-t border-slate-100 p-2">
-                        <Link to={`/courses?search=${encodeURIComponent(searchQuery)}`}
-                          onClick={clearSearch}
-                          className="flex items-center justify-center gap-2 py-2.5 text-sm font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition">
-                          <Search size={13} /> See all results for "{searchQuery}"
-                        </Link>
-                      </div>
+                      {/* ── No results ── */}
+                      {searchResults.courses.length === 0 && searchResults.instructors.length === 0 && (
+                        <div className="text-center py-10">
+                          <Search size={24} className="text-slate-200 mx-auto mb-2" />
+                          <p className="text-sm font-bold text-slate-400">No results for "{searchQuery}"</p>
+                          <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+                        </div>
+                      )}
+
+                      {/* ── Footer ── */}
+                      {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
+                        <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+                          <div className="flex gap-1">
+                            <Link to={`/courses?search=${encodeURIComponent(searchQuery)}`}
+                              onClick={clearSearch}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition">
+                              <BookOpen size={11} /> All courses
+                            </Link>
+                            <Link to={`/instructors?search=${encodeURIComponent(searchQuery)}`}
+                              onClick={clearSearch}
+                              className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition">
+                              <Users size={11} /> All instructors
+                            </Link>
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
                 </div>

@@ -33,6 +33,8 @@ import CertificatePage from "./pages/CertificatePage.jsx";
 import StudentProfilePage from "./pages/Student/StudentProfilePage.jsx";
 import InstructorPublicProfile from "./pages/InstructorPublicProfile.jsx";
 import InstructorsPage from "./pages/InstructorsPage.jsx";
+import PageLoader from "./Components/PageLoader.jsx";
+
 
 const router = createBrowserRouter([
   {
@@ -84,6 +86,7 @@ const router = createBrowserRouter([
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <AuthProvider>
+      <PageLoader />
       <RouterProvider router={router} />
     </AuthProvider>
   </StrictMode>,
