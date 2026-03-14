@@ -7,9 +7,8 @@ import {
   ArrowLeft, Banknote, CreditCard, Send, RefreshCw,
   ShieldCheck, Info, Tag, BarChart3, Package,
 } from "lucide-react";
-import API from "../services/api";
-import Layout from "../shared/Layout/Layout";
-
+import Layout from "../../shared/Layout/Layout";
+import API from "../../services/api";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 const fmt  = (n) => `$${(n || 0).toFixed(2)}`;
@@ -300,7 +299,9 @@ const WalletPage = () => {
     </Layout>
   );
 
-  const { wallet, earnings, payoutRequests } = data || {};
+  const wallet          = data?.wallet        || null;
+  const earnings       = Array.isArray(data?.earnings)       ? data.earnings       : [];
+  const payoutRequests = Array.isArray(data?.payoutRequests) ? data.payoutRequests : [];
 
   return (
     <Layout>
@@ -421,7 +422,7 @@ const WalletPage = () => {
           <div className="p-6">
             {tab === "earnings" && (
               <>
-                {earnings?.length === 0 ? (
+                {!Array.isArray(earnings) || earnings.length === 0 ? (
                   <div className="text-center py-12">
                     <DollarSign size={40} className="text-slate-200 mx-auto mb-3" />
                     <p className="font-bold text-slate-500">No earnings yet</p>
@@ -437,7 +438,7 @@ const WalletPage = () => {
 
             {tab === "payouts" && (
               <>
-                {payoutRequests?.length === 0 ? (
+                {!Array.isArray(payoutRequests) || payoutRequests.length === 0 ? (
                   <div className="text-center py-12">
                     <Banknote size={40} className="text-slate-200 mx-auto mb-3" />
                     <p className="font-bold text-slate-500">No payout requests yet</p>
