@@ -1,375 +1,359 @@
-// src/pages/Student/CertificatePage.jsx
-// Route: /certificate/:courseId
-import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-
+// src/pages/CheckoutPage.jsx  (or src/pages/Checkout.jsx — match your import)
+// Route: /checkout?courseId=XXX&ref=INSTRUCTOR_CODE (optional referral)
+import { useState, useEffect } from "react";
+import { useSearchParams, useNavigate, Link } from "react-router-dom";
 import {
-  Award, Download, ArrowLeft, CheckCircle, Star,
-  Calendar, BookOpen, Loader2, Share2,
+  ShieldCheck, Tag, X, Loader2, CheckCircle, AlertCircle,
+  Lock, Star, Users, BookOpen, Clock, ChevronRight, ArrowLeft,
+  Zap, DollarSign, TrendingUp,
 } from "lucide-react";
-import { useAuth } from "../Context/AuthContext";
+import Layout from "../shared/Layout/Layout";
 import API from "../services/api";
+import { useAuth } from "../Context/AuthContext";
 
-// ── helpers ────────────────────────────────────────────────────────────────
-const fmtDate = (d) =>
-  new Date(d).toLocaleDateString("en-US", {
-    month: "long", day: "numeric", year: "numeric",
-  });
+const fmt = (n) => `$${(n || 0).toFixed(2)}`;
 
-// Simple unique cert ID based on userId + courseId
-const certId = (uid = "", cid = "") =>
-  `CERT-${(uid + cid).replace(/-/g, "").substring(0, 12).toUpperCase()}`;
+// ── Revenue split preview ─────────────────────────────────────────────────────
+const SplitPreview = ({ price, isInstructor }) => {
+  const instructorPct = isInstructor ? 97 : 37;
+  const platformPct   = isInstructor ? 3  : 63;
+  const instructorAmt = (price * instructorPct / 100).toFixed(2);
+  const platformAmt   = (price * platformPct   / 100).toFixed(2);
 
-// ── PDF download via html2canvas + jsPDF (loaded from CDN) ────────────────
-const downloadPDF = async (certRef, studentName, courseTitle) => {
-  // Dynamically load libraries if not present
-  if (!window.html2canvas) {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-  if (!window.jspdf) {
-    await new Promise((res, rej) => {
-      const s = document.createElement("script");
-      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-  const canvas = await window.html2canvas(certRef, {
-    scale: 2,
-    useCORS: true,
-    backgroundColor: "#ffffff",
-  });
-  const imgData = canvas.toDataURL("image/png");
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-  const w = pdf.internal.pageSize.getWidth();
-  const h = pdf.internal.pageSize.getHeight();
-  pdf.addImage(imgData, "PNG", 0, 0, w, h);
-  pdf.save(`Certificate_${courseTitle.replace(/\s+/g, "_")}.pdf`);
+  return (
+    <div className={`rounded-xl p-3.5 border text-xs space-y-2 ${isInstructor ? "bg-violet-50 border-violet-200" : "bg-slate-50 border-slate-200"}`}>
+      <p className={`font-black text-[10px] uppercase tracking-widest ${isInstructor ? "text-violet-600" : "text-slate-500"}`}>
+        {isInstructor ? "⚡ Instructor Referral Sale" : "Revenue Split"}
+      </p>
+      <div className="space-y-1.5">
+        <div className="flex justify-between items-center">
+          <span className={isInstructor ? "text-violet-700" : "text-slate-600"}>Instructor earns</span>
+          <span className={`font-black ${isInstructor ? "text-violet-700" : "text-slate-700"}`}>
+            {fmt(instructorAmt)} <span className="font-normal opacity-60">({instructorPct}%)</span>
+          </span>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-slate-400">Platform fee</span>
+          <span className="text-slate-500 font-bold">
+            {fmt(platformAmt)} <span className="font-normal opacity-60">({platformPct}%)</span>
+          </span>
+        </div>
+      </div>
+      {/* Visual bar */}
+      <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden mt-1">
+        <div className={`h-full rounded-full transition-all duration-500 ${isInstructor ? "bg-violet-500" : "bg-blue-500"}`}
+          style={{ width: `${instructorPct}%` }} />
+      </div>
+    </div>
+  );
 };
 
-// ── Main component ─────────────────────────────────────────────────────────
-export default function CertificatePage() {
-  const { courseId }  = useParams();
-  const { user }      = useAuth();
-  const navigate      = useNavigate();
-  const certRef       = useRef(null);
+// ── Coupon Input ──────────────────────────────────────────────────────────────
+const CouponInput = ({ courseId, onApply, onRemove, applied }) => {
+  const [code,    setCode]    = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState("");
 
-  const [loading,      setLoading]      = useState(true);
-  const [downloading,  setDownloading]  = useState(false);
-  const [enrollment,   setEnrollment]   = useState(null);
-  const [copied,       setCopied]       = useState(false);
+  const handleApply = async () => {
+    if (!code.trim()) return;
+    setLoading(true); setError("");
+    try {
+      const res = await API.get(`/coupons/validate?code=${code.trim()}&courseId=${courseId}`);
+      if (res.data.valid) {
+        onApply({ ...res.data, code: code.trim().toUpperCase() });
+        setCode("");
+      } else {
+        setError(res.data.message || "Invalid or expired coupon code");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to validate coupon");
+    } finally { setLoading(false); }
+  };
+
+  if (applied) return (
+    <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3">
+      <div className="flex items-center gap-2">
+        <CheckCircle size={15} className="text-emerald-600" />
+        <div>
+          <span className="font-black text-emerald-700 text-sm font-mono">{applied.code}</span>
+          <span className="text-emerald-600 text-xs ml-2">— {applied.discountPct}% off applied!</span>
+        </div>
+      </div>
+      <button onClick={onRemove} className="text-emerald-500 hover:text-emerald-700 transition"><X size={14} /></button>
+    </div>
+  );
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <Tag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input type="text" value={code}
+            onChange={(e) => { setCode(e.target.value.toUpperCase()); setError(""); }}
+            onKeyDown={(e) => e.key === "Enter" && handleApply()}
+            placeholder="Enter coupon code"
+            className="w-full pl-9 pr-4 py-3 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500 transition font-mono uppercase" />
+        </div>
+        <button onClick={handleApply} disabled={loading || !code.trim()}
+          className="px-4 py-3 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-sm font-bold transition">
+          {loading ? <Loader2 size={14} className="animate-spin" /> : "Apply"}
+        </button>
+      </div>
+      {error && <p className="text-xs text-red-500 flex items-center gap-1"><AlertCircle size={11} /> {error}</p>}
+    </div>
+  );
+};
+
+// ── MAIN PAGE ─────────────────────────────────────────────────────────────────
+const CheckoutPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate       = useNavigate();
+  const { user }       = useAuth();
+
+  const courseId = searchParams.get("courseId");
+  const refParam = searchParams.get("ref"); // instructor referral code
+
+  const [course,          setCourse]          = useState(null);
+  const [loading,         setLoading]         = useState(true);
+  const [paying,          setPaying]          = useState(false);
+  const [coupon,          setCoupon]          = useState(null);
+  const [error,           setError]           = useState("");
+  const [alreadyEnrolled, setAlreadyEnrolled] = useState(false);
 
   useEffect(() => {
     if (!user) { navigate("/auth"); return; }
-    API.get("/enrollments/my")
-      .then((r) => {
-        const list = Array.isArray(r.data) ? r.data : [];
-        const found = list.find(
-          (e) => e.courseId === courseId || e.course?.id === courseId
-        );
-        if (!found || found.progress < 100) {
-          navigate(`/courses/${courseId}`);
-          return;
-        }
-        setEnrollment(found);
-      })
-      .catch(() => navigate("/StudentDashboard"))
-      .finally(() => setLoading(false));
+    if (!courseId) { navigate("/courses"); return; }
+    (async () => {
+      try {
+        const res = await API.get(`/courses/${courseId}`);
+        const data = res.data?.course || res.data;
+        setCourse(data);
+        // Check enrollment
+        try {
+          const enroll = await API.get("/enrollments/my");
+          const list = Array.isArray(enroll.data) ? enroll.data : [];
+          if (list.some(e => e.courseId === courseId)) setAlreadyEnrolled(true);
+        } catch {}
+      } catch {
+        setError("Course not found");
+      } finally { setLoading(false); }
+    })();
   }, [courseId, user]);
 
-  const handleDownload = async () => {
-    if (!certRef.current) return;
-    setDownloading(true);
+  const isInstructorSale = !!(coupon || refParam);
+  const originalPrice    = course?.price || 0;
+  const discount         = coupon ? parseFloat((originalPrice * coupon.discountPct / 100).toFixed(2)) : 0;
+  const finalPrice       = parseFloat((originalPrice - discount).toFixed(2));
+
+  const handleCheckout = async () => {
+    if (!user) { navigate("/auth"); return; }
+    if (alreadyEnrolled) { navigate(`/courses/${courseId}`); return; }
+    setPaying(true); setError("");
     try {
-      await downloadPDF(
-        certRef.current,
-        user.fullName,
-        enrollment.course?.title || "Course"
-      );
-    } catch (e) {
-      console.error("PDF generation failed:", e);
-      alert("PDF download failed. Try right-clicking the certificate and saving as image.");
-    } finally {
-      setDownloading(false);
-    }
-  };
-
-  const handleShare = () => {
-    const text = `I just completed "${enrollment.course?.title}" on this platform! 🎓`;
-    if (navigator.share) {
-      navigator.share({ title: "Certificate of Completion", text }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(text).then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+      // Free course — bypass Paystack
+      if (finalPrice === 0) {
+        await API.post("/payments/enroll/free", { courseId });
+        navigate(`/courses/${courseId}?enrolled=true`);
+        return;
+      }
+      // Paid — initialize Paystack transaction
+      const res = await API.post("/payments/initialize", {
+        courseId,
+        couponCode: coupon?.code   || undefined,
+        referral:   refParam ? true : undefined,
       });
+      // Redirect to Paystack hosted checkout
+      if (res.data.authorizationUrl) {
+        window.location.href = res.data.authorizationUrl;
+      } else {
+        throw new Error("No authorization URL returned");
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to process payment. Please try again.");
+      setPaying(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <Loader2 size={40} className="animate-spin text-amber-400" />
+  if (loading) return (
+    <Layout>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-blue-500" />
       </div>
-    );
-  }
+    </Layout>
+  );
 
-  if (!enrollment) return null;
-
-  const course       = enrollment.course;
-  const instructor   = course?.instructor;
-  const completionDate = fmtDate(enrollment.enrolledAt);
-  const id           = certId(user.id, courseId);
-
-  return (
-    <div className="min-h-screen bg-[#0c0a0a] flex flex-col items-center py-10 px-4">
-      {/* Top bar */}
-      <div className="w-full max-w-5xl flex items-center justify-between mb-8">
-        <Link
-          to="/StudentDashboard"
-          className="flex items-center gap-2 text-slate-400 hover:text-white text-sm font-semibold transition"
-        >
-          <ArrowLeft size={16} /> Back to Dashboard
-        </Link>
-
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-sm font-semibold transition border border-slate-700"
-          >
-            <Share2 size={15} />
-            {copied ? "Copied!" : "Share"}
-          </button>
-          <button
-            onClick={handleDownload}
-            disabled={downloading}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-60 text-black font-bold text-sm transition shadow-lg shadow-amber-500/30"
-          >
-            {downloading
-              ? <Loader2 size={15} className="animate-spin" />
-              : <Download size={15} />}
-            {downloading ? "Generating..." : "Download PDF"}
-          </button>
+  if (error && !course) return (
+    <Layout>
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle size={40} className="text-red-400 mx-auto mb-3" />
+          <p className="font-bold text-slate-700">{error}</p>
+          <Link to="/courses" className="text-sm text-blue-600 hover:underline mt-2 block">Browse Courses</Link>
         </div>
       </div>
+    </Layout>
+  );
 
-      {/* ── CERTIFICATE ────────────────────────────────────────────────── */}
-      <div
-        ref={certRef}
-        className="w-full max-w-5xl bg-white rounded-none overflow-hidden shadow-2xl shadow-black/50"
-        style={{ aspectRatio: "1.414 / 1", fontFamily: "Georgia, 'Times New Roman', serif" }}
-      >
-        {/* Outer border frame */}
-        <div className="h-full w-full p-6 box-border" style={{ background: "#fffef9" }}>
-          <div
-            className="h-full w-full flex flex-col items-center justify-between py-10 px-14 relative overflow-hidden"
-            style={{
-              border: "3px solid #c9a84c",
-              boxShadow: "inset 0 0 0 8px #fffef9, inset 0 0 0 11px #c9a84c",
-            }}
-          >
-            {/* Corner ornaments */}
-            {["top-4 left-4", "top-4 right-4", "bottom-4 left-4", "bottom-4 right-4"].map((pos, i) => (
-              <svg
-                key={i}
-                className={`absolute ${pos} opacity-40`}
-                width="48" height="48" viewBox="0 0 48 48"
-              >
-                <path
-                  d="M4,4 L20,4 M4,4 L4,20"
-                  stroke="#c9a84c" strokeWidth="2.5" fill="none" strokeLinecap="round"
-                />
-                <path
-                  d={i === 1 || i === 3
-                    ? "M44,4 L28,4 M44,4 L44,20"
-                    : i === 2
-                    ? "M4,44 L20,44 M4,44 L4,28"
-                    : "M44,44 L28,44 M44,44 L44,28"}
-                  stroke="#c9a84c" strokeWidth="2.5" fill="none" strokeLinecap="round"
-                />
-              </svg>
-            ))}
+  return (
+    <Layout>
+      <div className="max-w-5xl mx-auto px-4 py-10">
 
-            {/* Background watermark */}
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none select-none opacity-[0.03]"
-              style={{ fontSize: "22vw", fontWeight: 900, color: "#c9a84c", letterSpacing: "-0.05em" }}
-            >
-              ✦
+        {/* Breadcrumb */}
+        <div className="flex items-center gap-2 text-sm text-slate-400 mb-8">
+          <Link to={`/courses/${courseId}`} className="hover:text-slate-600 flex items-center gap-1 transition">
+            <ArrowLeft size={13} /> Course
+          </Link>
+          <ChevronRight size={12} />
+          <span className="text-slate-600 font-medium">Checkout</span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
+
+          {/* ── LEFT ── */}
+          <div className="lg:col-span-3 space-y-5">
+            <div>
+              <h1 className="text-2xl font-black text-slate-900 mb-1">Complete Your Purchase</h1>
+              <p className="text-slate-500 text-sm">You're one step away from accessing this course.</p>
             </div>
 
-            {/* Logo / Platform name */}
-            <div className="text-center">
-              <div className="flex items-center justify-center gap-3 mb-1">
-                <div className="w-10 h-10 rounded-full bg-amber-500 flex items-center justify-center shadow-lg">
-                  <BookOpen size={20} className="text-white" />
+            {/* Course card */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 flex gap-4">
+              <div className="w-24 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0">
+                {course.thumbnail
+                  ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center"><BookOpen size={20} className="text-slate-300" /></div>}
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="font-black text-slate-800 text-sm leading-snug line-clamp-2">{course.title}</h3>
+                <p className="text-xs text-slate-400 mt-1">{course.instructor?.fullName}</p>
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  {course._count?.lessons > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                      <BookOpen size={10} /> {course._count.lessons} lessons
+                    </span>
+                  )}
+                  {course._count?.enrollments > 0 && (
+                    <span className="flex items-center gap-1 text-xs text-slate-400">
+                      <Users size={10} /> {course._count.enrollments} students
+                    </span>
+                  )}
                 </div>
-                <span
-                  className="text-2xl font-black tracking-widest uppercase"
-                  style={{ color: "#1a1a2e", letterSpacing: "0.25em", fontFamily: "Georgia, serif" }}
-                >
-                  LearnHub
-                </span>
-              </div>
-              <div className="h-px w-48 mx-auto mt-2" style={{ background: "linear-gradient(to right, transparent, #c9a84c, transparent)" }} />
-            </div>
-
-            {/* Main content */}
-            <div className="text-center space-y-5 flex-1 flex flex-col items-center justify-center">
-              <div>
-                <p
-                  className="uppercase tracking-[0.3em] text-xs mb-4"
-                  style={{ color: "#9a7c3a", fontFamily: "Georgia, serif" }}
-                >
-                  Certificate of Completion
-                </p>
-                <p
-                  className="text-sm mb-2"
-                  style={{ color: "#555", fontFamily: "Georgia, serif" }}
-                >
-                  This is to certify that
-                </p>
-                <h1
-                  className="text-5xl font-normal mb-3"
-                  style={{
-                    color: "#1a1a2e",
-                    fontFamily: "'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif",
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {user.fullName}
-                </h1>
-                <div className="h-px w-72 mx-auto" style={{ background: "linear-gradient(to right, transparent, #c9a84c80, transparent)" }} />
-              </div>
-
-              <div className="space-y-2">
-                <p
-                  className="text-sm"
-                  style={{ color: "#555", fontFamily: "Georgia, serif" }}
-                >
-                  has successfully completed the course
-                </p>
-                <h2
-                  className="text-2xl font-bold px-8"
-                  style={{
-                    color: "#1a1a2e",
-                    fontFamily: "Georgia, serif",
-                    maxWidth: "600px",
-                    lineHeight: "1.3",
-                  }}
-                >
-                  "{course?.title}"
-                </h2>
-                {instructor?.fullName && (
-                  <p
-                    className="text-sm"
-                    style={{ color: "#777", fontFamily: "Georgia, serif" }}
-                  >
-                    instructed by <span style={{ color: "#9a7c3a" }}>{instructor.fullName}</span>
-                  </p>
-                )}
-              </div>
-
-              {/* Stats row */}
-              <div className="flex items-center gap-8 mt-2">
-                {[
-                  { icon: CheckCircle, label: `${enrollment.totalLessons || 0} Lessons`, },
-                  { icon: Star,        label: "All Quizzes Passed" },
-                  { icon: Calendar,    label: completionDate },
-                ].map(({ icon: Icon, label }, i) => (
-                  <div key={i} className="flex items-center gap-1.5 text-xs" style={{ color: "#9a7c3a" }}>
-                    <Icon size={13} />
-                    <span style={{ fontFamily: "Georgia, serif" }}>{label}</span>
-                  </div>
-                ))}
               </div>
             </div>
 
-            {/* Bottom: signatures + cert ID */}
-            <div className="w-full">
-              <div className="flex items-end justify-between px-8">
-                {/* Platform sig */}
-                <div className="text-center">
-                  <div
-                    className="text-2xl mb-1"
-                    style={{
-                      fontFamily: "'Brush Script MT', cursive",
-                      color: "#1a1a2e",
-                      letterSpacing: "0.05em",
-                    }}
-                  >
-                    LearnHub Team
-                  </div>
-                  <div className="h-px w-40 mb-1" style={{ background: "#c9a84c" }} />
-                  <p className="text-xs uppercase tracking-widest" style={{ color: "#9a7c3a", fontFamily: "Georgia, serif" }}>
-                    Platform Director
-                  </p>
-                </div>
+            {/* Referral notice */}
+            {refParam && !coupon && (
+              <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 flex items-center gap-3">
+                <Zap size={16} className="text-violet-600 shrink-0" />
+                <p className="text-sm text-violet-800">
+                  <span className="font-bold">Instructor referral detected.</span> The instructor earns 97% of this sale.
+                </p>
+              </div>
+            )}
 
-                {/* Seal */}
-                <div className="flex flex-col items-center">
-                  <div
-                    className="w-20 h-20 rounded-full flex items-center justify-center"
-                    style={{
-                      border: "3px solid #c9a84c",
-                      boxShadow: "0 0 0 2px #fffef9, 0 0 0 4px #c9a84c40",
-                      background: "radial-gradient(circle, #fffef9, #fef9e7)",
-                    }}
-                  >
-                    <div className="text-center">
-                      <Award size={22} className="mx-auto mb-0.5" style={{ color: "#c9a84c" }} />
-                      <p className="text-[7px] uppercase tracking-wider font-bold" style={{ color: "#9a7c3a" }}>Certified</p>
-                    </div>
+            {/* Coupon */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+              <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                <Tag size={15} className="text-violet-500" /> Have a Coupon?
+              </h3>
+              <CouponInput courseId={courseId} applied={coupon}
+                onApply={(c) => setCoupon(c)} onRemove={() => setCoupon(null)} />
+            </div>
+
+            {/* Revenue split preview — always visible for paid courses */}
+            {finalPrice > 0 && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-3">
+                <h3 className="font-black text-slate-800 text-sm flex items-center gap-2">
+                  <TrendingUp size={15} className="text-blue-500" /> How Revenue is Split
+                </h3>
+                <SplitPreview price={finalPrice} isInstructor={isInstructorSale} />
+              </div>
+            )}
+
+            {/* Guarantees */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {[
+                { icon: ShieldCheck, label: "Secure Payment",  sub: "256-bit SSL encryption" },
+                { icon: Clock,       label: "Lifetime Access", sub: "Learn at your own pace" },
+                { icon: CheckCircle, label: "Instant Access",  sub: "Start immediately"      },
+              ].map(({ icon: Icon, label, sub }) => (
+                <div key={label} className="bg-white rounded-xl border border-slate-100 p-3.5 flex items-center gap-3 shadow-sm">
+                  <Icon size={16} className="text-blue-500 shrink-0" />
+                  <div>
+                    <p className="font-bold text-slate-700 text-xs">{label}</p>
+                    <p className="text-[10px] text-slate-400">{sub}</p>
                   </div>
                 </div>
+              ))}
+            </div>
+          </div>
 
-                {/* Instructor sig */}
-                {instructor?.fullName && (
-                  <div className="text-center">
-                    <div
-                      className="text-2xl mb-1"
-                      style={{
-                        fontFamily: "'Brush Script MT', cursive",
-                        color: "#1a1a2e",
-                      }}
-                    >
-                      {instructor.fullName}
-                    </div>
-                    <div className="h-px w-40 mb-1" style={{ background: "#c9a84c" }} />
-                    <p className="text-xs uppercase tracking-widest" style={{ color: "#9a7c3a", fontFamily: "Georgia, serif" }}>
-                      Instructor
-                    </p>
+          {/* ── RIGHT: Order Summary ── */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 space-y-5 sticky top-24">
+              <h3 className="font-black text-slate-800">Order Summary</h3>
+
+              {/* Price breakdown */}
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-600">Original Price</span>
+                  <span className="font-bold text-slate-800">{fmt(originalPrice)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-emerald-600 flex items-center gap-1">
+                      <Tag size={11} /> Coupon ({coupon.discountPct}% off)
+                    </span>
+                    <span className="font-bold text-emerald-600">−{fmt(discount)}</span>
                   </div>
                 )}
+                <div className="border-t border-slate-100 pt-3 flex justify-between">
+                  <span className="font-black text-slate-800">Total</span>
+                  <span className="font-black text-2xl text-slate-900">{finalPrice === 0 ? "Free" : fmt(finalPrice)}</span>
+                </div>
               </div>
 
-              {/* Cert ID */}
-              <div className="text-center mt-5">
-                <p className="text-[9px] uppercase tracking-[0.3em]" style={{ color: "#bbb" }}>
-                  Certificate ID: {id}
+              {error && (
+                <div className="bg-red-50 rounded-xl p-3 flex gap-2">
+                  <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                  <p className="text-xs text-red-600 font-medium">{error}</p>
+                </div>
+              )}
+
+              {alreadyEnrolled ? (
+                <div className="space-y-3">
+                  <div className="bg-emerald-50 rounded-xl p-3 flex items-center gap-2">
+                    <CheckCircle size={14} className="text-emerald-600" />
+                    <p className="text-sm font-bold text-emerald-700">You're already enrolled!</p>
+                  </div>
+                  <Link to={`/courses/${courseId}`}
+                    className="block w-full text-center py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition">
+                    Go to Course →
+                  </Link>
+                </div>
+              ) : (
+                <button onClick={handleCheckout} disabled={paying}
+                  className="w-full py-4 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white rounded-xl font-black text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-blue-200">
+                  {paying
+                    ? <><Loader2 size={16} className="animate-spin" /> Processing...</>
+                    : finalPrice === 0
+                      ? <><CheckCircle size={16} /> Enroll for Free</>
+                      : <><Lock size={16} /> Pay {fmt(finalPrice)} Securely</>
+                  }
+                </button>
+              )}
+
+              {!alreadyEnrolled && finalPrice > 0 && (
+                <p className="text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
+                  <Lock size={9} /> Processed securely via Paystack
                 </p>
-              </div>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Caption below */}
-      <p className="mt-6 text-slate-500 text-xs text-center">
-        This certificate is uniquely generated for {user.fullName} · ID: {id}
-      </p>
-    </div>
+    </Layout>
   );
-}
+};
 
-// ─────────────────────────────────────────────────────────────────────────────
-// ADD TO App.jsx:
-// import CertificatePage from "./pages/Student/CertificatePage";
-// <Route path="/certificate/:courseId" element={<CertificatePage />} />
-// ─────────────────────────────────────────────────────────────────────────────
+export default CheckoutPage;

@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import {
   X, Plus, BookOpen, Users, Clock, CheckCircle,
   Send, Loader2, MoreVertical, GraduationCap,
   FileText, Trash2, Edit2, Video,
   Upload, ChevronRight, ArrowLeft, Save,
-  Star, TrendingUp,
-  HelpCircle,
-  Trophy,
+  Star, TrendingUp, HelpCircle, Trophy,
+  Wallet, DollarSign, Tag, Copy, ExternalLink,
 } from "lucide-react";
 import Layout from "../../shared/Layout/Layout";
 import {
@@ -19,6 +19,7 @@ import API from "../../services/api";
 
 const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET;
+const FRONTEND_URL  = import.meta.env.VITE_FRONTEND_URL || window.location.origin;
 
 const uploadToCloudinary = async (file, resourceType = "auto") => {
   const fd = new FormData();
@@ -33,6 +34,8 @@ const uploadToCloudinary = async (file, resourceType = "auto") => {
   return (await res.json()).secure_url;
 };
 
+const fmt = (n) => `$${(n || 0).toFixed(2)}`;
+
 const statusConfig = {
   PUBLISHED:      { color: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", label: "Published"      },
   DRAFT:          { color: "bg-slate-100 text-slate-600 border-slate-200",       dot: "bg-slate-400",   label: "Draft"          },
@@ -40,7 +43,7 @@ const statusConfig = {
   REJECTED:       { color: "bg-red-100 text-red-600 border-red-200",             dot: "bg-red-500",     label: "Rejected"       },
 };
 
-// ── Pure display components (module level — never re-created on render) ───────
+// ── Pure display components ───────────────────────────────────────────────────
 
 const StatusBadge = ({ status }) => {
   const cfg = statusConfig[status] || statusConfig.DRAFT;
@@ -100,11 +103,78 @@ const UploadButton = ({ label, accept, onUpload, uploading, preview, type = "ima
   );
 };
 
+// ── Wallet Summary Card ───────────────────────────────────────────────────────
+const WalletSummary = ({ wallet }) => {
+  if (!wallet) return null;
+  return (
+    <div className="bg-gradient-to-br from-emerald-600 to-teal-700 rounded-2xl p-5 text-white shadow-lg shadow-emerald-600/20 relative overflow-hidden">
+      <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
+      <div className="absolute -bottom-6 -left-2 w-16 h-16 rounded-full bg-white/5" />
+      <div className="relative">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Wallet size={16} className="text-emerald-200" />
+            <span className="text-xs font-black text-emerald-200 uppercase tracking-widest">Wallet</span>
+          </div>
+          <RouterLink to="/instructor/wallet"
+            className="text-[10px] font-bold text-emerald-200 hover:text-white bg-white/10 hover:bg-white/20 px-2.5 py-1 rounded-lg transition flex items-center gap-1">
+            Manage <ExternalLink size={9} />
+          </RouterLink>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-white/60 text-[10px] font-medium">Available</p>
+            <p className="text-xl font-black leading-tight">{fmt(wallet.availableBalance)}</p>
+          </div>
+          <div>
+            <p className="text-white/60 text-[10px] font-medium">Pending (30d)</p>
+            <p className="text-xl font-black leading-tight">{fmt(wallet.pendingBalance)}</p>
+          </div>
+        </div>
+        <p className="text-[10px] text-emerald-300 mt-2">Lifetime: {fmt(wallet.totalEarned)}</p>
+      </div>
+    </div>
+  );
+};
+
+// ── Referral Link Card ────────────────────────────────────────────────────────
+const ReferralLinkCard = ({ courseId, courseTitle }) => {
+  const [copied, setCopied] = useState(false);
+  const url = `${FRONTEND_URL}/courses/${courseId}?ref=instructor`;
+
+  const copy = () => {
+    navigator.clipboard.writeText(url).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4">
+      <div className="flex items-center gap-2 mb-2">
+        <DollarSign size={13} className="text-violet-600" />
+        <p className="text-xs font-black text-violet-700 uppercase tracking-widest">Referral Link — Earn 97%</p>
+      </div>
+      <p className="text-[11px] text-violet-600 mb-3">
+        Share this link and earn 97% of every sale (vs 37% from platform traffic).
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 bg-white border border-violet-200 rounded-xl px-3 py-2 text-xs text-slate-600 font-mono truncate">
+          {url}
+        </div>
+        <button onClick={copy}
+          className={`flex items-center gap-1.5 text-xs font-bold px-3 py-2 rounded-xl transition shrink-0 ${
+            copied ? "bg-emerald-500 text-white" : "bg-violet-600 hover:bg-violet-700 text-white"
+          }`}>
+          <Copy size={12} />
+          {copied ? "Copied!" : "Copy"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ══════════════════════════════════════════════════════════════════════════════
-// MODAL COMPONENTS — defined at MODULE LEVEL so React never treats them as new
-// component types between renders. This is the root cause fix for the
-// "one keystroke then deselect" bug — defining them inside the parent component
-// caused React to unmount/remount modals on every state change.
+// MODAL COMPONENTS
 // ══════════════════════════════════════════════════════════════════════════════
 
 const LessonFormModal = ({
@@ -125,13 +195,9 @@ const LessonFormModal = ({
         <form onSubmit={onSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-            <input
-              value={lessonForm.title}
-              onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
+            <input value={lessonForm.title} onChange={(e) => setLessonForm((p) => ({ ...p, title: e.target.value }))}
               placeholder="e.g. Introduction to React"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-              required
-            />
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" required />
           </div>
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1.5">Type</label>
@@ -152,8 +218,7 @@ const LessonFormModal = ({
               </div>
               <input type="url" value={videoPreview || lessonForm.content}
                 onChange={(e) => { setVideoPreview(""); setLessonForm((p) => ({ ...p, content: e.target.value })); }}
-                placeholder="https://youtube.com/..."
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
+                placeholder="https://youtube.com/..." className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
             </div>
           ) : (
             <div>
@@ -161,8 +226,7 @@ const LessonFormModal = ({
               <textarea rows="5" value={lessonForm.content}
                 onChange={(e) => setLessonForm((p) => ({ ...p, content: e.target.value }))}
                 placeholder="Write lesson content..."
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition"
-                required />
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition" required />
             </div>
           )}
           <div className="flex gap-3 pt-2">
@@ -196,13 +260,9 @@ const CourseFormModal = ({
         <form onSubmit={onSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-            <input
-              value={courseForm.title}
-              onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))}
+            <input value={courseForm.title} onChange={(e) => setCourseForm((p) => ({ ...p, title: e.target.value }))}
               placeholder="e.g. Complete React Mastery"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-              required
-            />
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" required />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
@@ -225,8 +285,7 @@ const CourseFormModal = ({
             <textarea rows="3" value={courseForm.description}
               onChange={(e) => setCourseForm((p) => ({ ...p, description: e.target.value }))}
               placeholder="What will students learn?"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition"
-              required />
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 resize-none transition" required />
           </div>
           <UploadButton label="Course Thumbnail" accept="image/*" onUpload={handleThumbUpload} uploading={uploadingThumb} preview={thumbPreview} type="image" />
           <div className="flex gap-3 pt-2">
@@ -243,13 +302,7 @@ const CourseFormModal = ({
   </>
 );
 
-const ResourceModal = ({
-  onSubmit, onClose,
-  resourceForm, setResourceForm,
-  resPreview, setResPreview,
-  uploadingRes, handleResUpload,
-  savingResource,
-}) => (
+const ResourceModal = ({ onSubmit, onClose, resourceForm, setResourceForm, resPreview, setResPreview, uploadingRes, handleResUpload, savingResource }) => (
   <>
     <div onClick={onClose} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40" />
     <div className="fixed inset-x-0 bottom-0 sm:inset-0 z-50 flex sm:items-center justify-center">
@@ -261,13 +314,9 @@ const ResourceModal = ({
         <form onSubmit={onSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-sm font-bold text-slate-700 mb-1.5">Title *</label>
-            <input
-              value={resourceForm.title}
-              onChange={(e) => setResourceForm((p) => ({ ...p, title: e.target.value }))}
+            <input value={resourceForm.title} onChange={(e) => setResourceForm((p) => ({ ...p, title: e.target.value }))}
               placeholder="e.g. Course Notes PDF"
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition"
-              required
-            />
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition" required />
           </div>
           <UploadButton label="Upload File" accept="*/*" onUpload={handleResUpload} uploading={uploadingRes} preview={resPreview} type="file" />
           <div className="flex items-center gap-2 text-xs text-slate-400">
@@ -278,8 +327,7 @@ const ResourceModal = ({
             placeholder="https://example.com/file.pdf"
             className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500 transition" />
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+            <button type="button" onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
             <button type="submit" disabled={savingResource}
               className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
               {savingResource ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />}
@@ -295,38 +343,19 @@ const ResourceModal = ({
 const QuizBuilderModal = ({ onClose, onSubmit, quizForm, setQuizForm, savingQuiz }) => {
   const addQuestion = () => setQuizForm((p) => ({
     ...p,
-    questions: [...p.questions, {
-      text: "",
-      options: [
-        { text: "", isCorrect: true  },
-        { text: "", isCorrect: false },
-        { text: "", isCorrect: false },
-        { text: "", isCorrect: false },
-      ],
-    }],
+    questions: [...p.questions, { text: "", options: [{ text: "", isCorrect: true }, { text: "", isCorrect: false }, { text: "", isCorrect: false }, { text: "", isCorrect: false }] }],
   }));
-
-  const updateQuestion = (qi, text) => setQuizForm((p) => ({
-    ...p,
-    questions: p.questions.map((q, i) => i === qi ? { ...q, text } : q),
-  }));
-
+  const updateQuestion = (qi, text) => setQuizForm((p) => ({ ...p, questions: p.questions.map((q, i) => i === qi ? { ...q, text } : q) }));
   const updateOption = (qi, oi, field, value) => setQuizForm((p) => ({
     ...p,
     questions: p.questions.map((q, i) => i !== qi ? q : {
       ...q,
       options: q.options.map((o, j) =>
-        field === "isCorrect"
-          ? { ...o, isCorrect: j === oi }
-          : j === oi ? { ...o, [field]: value } : o
+        field === "isCorrect" ? { ...o, isCorrect: j === oi } : j === oi ? { ...o, [field]: value } : o
       ),
     }),
   }));
-
-  const removeQuestion = (qi) => setQuizForm((p) => ({
-    ...p,
-    questions: p.questions.filter((_, i) => i !== qi),
-  }));
+  const removeQuestion = (qi) => setQuizForm((p) => ({ ...p, questions: p.questions.filter((_, i) => i !== qi) }));
 
   return (
     <>
@@ -340,35 +369,25 @@ const QuizBuilderModal = ({ onClose, onSubmit, quizForm, setQuizForm, savingQuiz
             </div>
             <button onClick={onClose} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400"><X size={20} /></button>
           </div>
-
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-1.5">Quiz Title *</label>
-              <input
-                value={quizForm.title}
-                onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
+              <input value={quizForm.title} onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
                 placeholder="e.g. Module 1 Knowledge Check"
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-              />
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
             </div>
-
             {quizForm.questions.map((q, qi) => (
               <div key={qi} className="bg-slate-50 rounded-2xl p-4 space-y-3 border border-slate-100">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-black text-blue-600 uppercase tracking-wide">Question {qi + 1}</span>
                   {quizForm.questions.length > 1 && (
-                    <button onClick={() => removeQuestion(qi)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
+                    <button onClick={() => removeQuestion(qi)} className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
                       <Trash2 size={13} />
                     </button>
                   )}
                 </div>
-                <input
-                  value={q.text}
-                  onChange={(e) => updateQuestion(qi, e.target.value)}
-                  placeholder="Enter your question..."
-                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition"
-                />
+                <input value={q.text} onChange={(e) => updateQuestion(qi, e.target.value)} placeholder="Enter your question..."
+                  className="w-full bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
                 <div className="space-y-2">
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-wide">Options — select the correct answer</p>
                   {q.options.map((o, oi) => (
@@ -377,29 +396,21 @@ const QuizBuilderModal = ({ onClose, onSubmit, quizForm, setQuizForm, savingQuiz
                         className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition ${o.isCorrect ? "border-emerald-500 bg-emerald-500" : "border-slate-300 hover:border-emerald-400"}`}>
                         {o.isCorrect && <div className="w-2 h-2 rounded-full bg-white" />}
                       </button>
-                      <input
-                        value={o.text}
-                        onChange={(e) => updateOption(qi, oi, "text", e.target.value)}
+                      <input value={o.text} onChange={(e) => updateOption(qi, oi, "text", e.target.value)}
                         placeholder={`Option ${oi + 1}`}
-                        className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition ${o.isCorrect ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 bg-white"}`}
-                      />
+                        className={`flex-1 border rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition ${o.isCorrect ? "border-emerald-300 bg-emerald-50/50" : "border-slate-200 bg-white"}`} />
                     </div>
                   ))}
                 </div>
               </div>
             ))}
-
             <button onClick={addQuestion}
               className="w-full border-2 border-dashed border-blue-200 hover:border-blue-400 text-blue-500 font-bold text-sm py-3 rounded-2xl transition flex items-center justify-center gap-2">
               <Plus size={16} /> Add Question
             </button>
           </div>
-
           <div className="px-6 py-4 border-t border-slate-100 shrink-0 flex gap-3">
-            <button onClick={onClose}
-              className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">
-              Cancel
-            </button>
+            <button onClick={onClose} className="flex-1 border border-slate-200 rounded-xl py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
             <button onClick={onSubmit} disabled={savingQuiz || !quizForm.title}
               className="flex-1 bg-violet-600 hover:bg-violet-700 disabled:opacity-60 text-white rounded-xl py-3 text-sm font-bold transition flex items-center justify-center gap-2">
               {savingQuiz ? <Loader2 size={16} className="animate-spin" /> : <HelpCircle size={16} />}
@@ -418,6 +429,8 @@ const VIEWS = { LIST: "list", COURSE_DETAIL: "course_detail" };
 const TABS  = { LESSONS: "lessons", RESOURCES: "resources", QUIZZES: "quizzes", REVIEWS: "reviews", STUDENTS: "students" };
 
 const InstructorDashboard = () => {
+  const navigate = useNavigate();
+
   const [view,           setView]           = useState(VIEWS.LIST);
   const [activeTab,      setActiveTab]      = useState(TABS.LESSONS);
   const [selectedCourse, setSelectedCourse] = useState(null);
@@ -431,6 +444,7 @@ const InstructorDashboard = () => {
   const [loadingTab,     setLoadingTab]     = useState(false);
   const [menuOpen,       setMenuOpen]       = useState(null);
   const [toast,          setToast]          = useState(null);
+  const [wallet,         setWallet]         = useState(null);
 
   // modals
   const [createCourseOpen, setCreateCourseOpen] = useState(false);
@@ -477,6 +491,9 @@ const InstructorDashboard = () => {
       .then((r) => setCourses(Array.isArray(r.data) ? r.data : r.data?.data || []))
       .catch(() => showToast("Failed to fetch courses", "error"))
       .finally(() => setLoading(false));
+
+    // Fetch wallet summary
+    API.get("/wallet/me").then((r) => setWallet(r.data?.wallet || null)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -489,22 +506,14 @@ const InstructorDashboard = () => {
       [TABS.REVIEWS]:   () => API.get(`/reviews/course/${selectedCourse.id}`).then((r) => setReviews(r.data || { reviews: [], averageRating: 0, totalReviews: 0 })),
       [TABS.STUDENTS]:  () => API.get(`/enrollments/course/${selectedCourse.id}`).then((r) => setStudents(Array.isArray(r.data) ? r.data : [])),
     };
-    (fetchers[activeTab] || fetchers[TABS.LESSONS])()
-      .catch(console.error)
-      .finally(() => setLoadingTab(false));
+    (fetchers[activeTab] || fetchers[TABS.LESSONS])().catch(console.error).finally(() => setLoadingTab(false));
   }, [view, selectedCourse, activeTab]);
 
-  const openCourse = (course) => {
-    setSelectedCourse(course);
-    setView(VIEWS.COURSE_DETAIL);
-    setActiveTab(TABS.LESSONS);
-    setMenuOpen(null);
-  };
+  const openCourse = (course) => { setSelectedCourse(course); setView(VIEWS.COURSE_DETAIL); setActiveTab(TABS.LESSONS); setMenuOpen(null); };
 
   // ── Course CRUD ──────────────────────────────────────────────────────────────
   const handleCreateCourse = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
+    e.preventDefault(); setSubmitting(true);
     try {
       const res = await createCourse({ ...courseForm, price: Number(courseForm.price) || 0, thumbnail: thumbPreview || undefined });
       setCourses((p) => [res.data.course, ...p]);
@@ -512,11 +521,8 @@ const InstructorDashboard = () => {
       setCourseForm({ title: "", description: "", price: "", category: "Development" });
       setThumbPreview("");
       showToast("Course created!");
-    } catch (err) {
-      showToast(err.response?.data?.message || "Failed to create course", "error");
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { showToast(err.response?.data?.message || "Failed to create course", "error"); }
+    finally { setSubmitting(false); }
   };
 
   const openEditCourse = (course) => {
@@ -528,19 +534,15 @@ const InstructorDashboard = () => {
   };
 
   const handleEditCourse = async (e) => {
-    e.preventDefault();
-    setSavingCourse(true);
+    e.preventDefault(); setSavingCourse(true);
     try {
       const res = await updateCourse(selectedCourse.id, { ...courseForm, price: Number(courseForm.price), thumbnail: thumbPreview || undefined });
       setCourses((p) => p.map((c) => c.id === selectedCourse.id ? res.data.course : c));
       if (view === VIEWS.COURSE_DETAIL) setSelectedCourse(res.data.course);
       setEditCourseOpen(false);
       showToast("Course updated!");
-    } catch (err) {
-      showToast(err.response?.data?.message || "Failed to update", "error");
-    } finally {
-      setSavingCourse(false);
-    }
+    } catch (err) { showToast(err.response?.data?.message || "Failed to update", "error"); }
+    finally { setSavingCourse(false); }
   };
 
   const handleDeleteCourse = async (courseId) => {
@@ -568,15 +570,9 @@ const InstructorDashboard = () => {
 
   // ── Lesson CRUD ──────────────────────────────────────────────────────────────
   const handleCreateLesson = async (e) => {
-    e.preventDefault();
-    setSavingLesson(true);
+    e.preventDefault(); setSavingLesson(true);
     try {
-      const payload = {
-        ...lessonForm,
-        courseId: selectedCourse.id,
-        order: lessons.length + 1,
-        content: lessonForm.type === "VIDEO" ? (videoPreview || lessonForm.content) : lessonForm.content,
-      };
+      const payload = { ...lessonForm, courseId: selectedCourse.id, order: lessons.length + 1, content: lessonForm.type === "VIDEO" ? (videoPreview || lessonForm.content) : lessonForm.content };
       const res = await createLesson(payload);
       setLessons((p) => [...p, res.data.lesson]);
       setCreateLessonOpen(false);
@@ -595,16 +591,11 @@ const InstructorDashboard = () => {
   };
 
   const handleEditLesson = async (e) => {
-    e.preventDefault();
-    setSavingLesson(true);
+    e.preventDefault(); setSavingLesson(true);
     try {
-      const res = await updateLesson(editingLesson.id, {
-        ...lessonForm,
-        content: lessonForm.type === "VIDEO" ? (videoPreview || lessonForm.content) : lessonForm.content,
-      });
+      const res = await updateLesson(editingLesson.id, { ...lessonForm, content: lessonForm.type === "VIDEO" ? (videoPreview || lessonForm.content) : lessonForm.content });
       setLessons((p) => p.map((l) => l.id === editingLesson.id ? res.data.lesson : l));
-      setEditLessonOpen(false);
-      setEditingLesson(null);
+      setEditLessonOpen(false); setEditingLesson(null);
       showToast("Lesson updated!");
     } catch { showToast("Failed to update.", "error"); }
     finally { setSavingLesson(false); }
@@ -621,22 +612,17 @@ const InstructorDashboard = () => {
     finally { setDeleteLoading((p) => ({ ...p, [lessonId]: false })); }
   };
 
-  // ── Resource ─────────────────────────────────────────────────────────────────
   const handleAddResource = async (e) => {
-    e.preventDefault();
-    setSavingResource(true);
+    e.preventDefault(); setSavingResource(true);
     try {
       const res = await addResource({ ...resourceForm, fileUrl: resPreview || resourceForm.fileUrl, courseId: selectedCourse.id });
       setResources((p) => [...p, res.data.resource]);
-      setAddResourceOpen(false);
-      setResourceForm({ title: "", fileUrl: "" });
-      setResPreview("");
+      setAddResourceOpen(false); setResourceForm({ title: "", fileUrl: "" }); setResPreview("");
       showToast("Resource added!");
     } catch (err) { showToast(err.response?.data?.message || "Failed", "error"); }
     finally { setSavingResource(false); }
   };
 
-  // ── Quiz ─────────────────────────────────────────────────────────────────────
   const handleCreateQuiz = async () => {
     setSavingQuiz(true);
     try {
@@ -651,14 +637,10 @@ const InstructorDashboard = () => {
 
   const handleDeleteQuiz = async (quizId) => {
     if (!window.confirm("Delete this quiz?")) return;
-    try {
-      await API.delete(`/quizzes/${quizId}`);
-      setQuizzes((p) => p.filter((q) => q.id !== quizId));
-      showToast("Quiz deleted.");
-    } catch { showToast("Failed.", "error"); }
+    try { await API.delete(`/quizzes/${quizId}`); setQuizzes((p) => p.filter((q) => q.id !== quizId)); showToast("Quiz deleted."); }
+    catch { showToast("Failed.", "error"); }
   };
 
-  // ── Uploads ──────────────────────────────────────────────────────────────────
   const handleThumbUpload = async (f) => { setUploadingThumb(true); try { setThumbPreview(await uploadToCloudinary(f, "image")); } catch { showToast("Upload failed", "error"); } finally { setUploadingThumb(false); } };
   const handleVideoUpload = async (f) => { setUploadingVideo(true); try { setVideoPreview(await uploadToCloudinary(f, "video")); } catch { showToast("Upload failed", "error"); } finally { setUploadingVideo(false); } };
   const handleResUpload   = async (f) => { setUploadingRes(true);   try { setResPreview(await uploadToCloudinary(f, "auto"));   } catch { showToast("Upload failed", "error"); } finally { setUploadingRes(false); } };
@@ -668,8 +650,6 @@ const InstructorDashboard = () => {
     published: courses.filter((c) => c.status === "PUBLISHED").length,
     pending:   courses.filter((c) => c.status === "PENDING_REVIEW").length,
     students:  courses.reduce((a, c) => a + (c._count?.enrollments || 0), 0),
-    revenue:   courses.filter((c) => c.status === "PUBLISHED")
-      .reduce((a, c) => a + ((c._count?.enrollments || 0) * (c.price || 0)), 0),
   };
 
   // ══════════════════════════════════════════════════════════════════════════════
@@ -686,25 +666,18 @@ const InstructorDashboard = () => {
 
     return (
       <Layout>
-        {toast && (
-          <div className={`fixed top-5 right-5 z-[999] px-5 py-3 rounded-2xl text-white font-bold shadow-2xl text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
-            {toast.msg}
-          </div>
-        )}
+        {toast && <div className={`fixed top-5 right-5 z-[999] px-5 py-3 rounded-2xl text-white font-bold shadow-2xl text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>{toast.msg}</div>}
 
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10 pt-28">
-
             <button onClick={() => { setView(VIEWS.LIST); setSelectedCourse(null); }}
               className="flex items-center gap-2 text-slate-500 hover:text-slate-800 font-semibold text-sm mb-6 transition">
               <ArrowLeft size={16} /> Back to Courses
             </button>
 
-            {/* Course header card */}
-            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-6">
-              {selectedCourse.thumbnail && (
-                <img src={selectedCourse.thumbnail} alt="" className="w-full h-44 object-cover" />
-              )}
+            {/* Course header */}
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden mb-5">
+              {selectedCourse.thumbnail && <img src={selectedCourse.thumbnail} alt="" className="w-full h-44 object-cover" />}
               <div className="p-6">
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
@@ -714,16 +687,13 @@ const InstructorDashboard = () => {
                     </div>
                     <p className="text-slate-500 text-sm leading-relaxed">{selectedCourse.description}</p>
                     <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-slate-400">
-                      {selectedCourse.category?.name && (
-                        <span className="bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-lg">{selectedCourse.category.name}</span>
-                      )}
+                      {selectedCourse.category?.name && <span className="bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-lg">{selectedCourse.category.name}</span>}
                       <span className="flex items-center gap-1"><Users size={12} /> {selectedCourse._count?.enrollments || 0} students</span>
                       <span className="font-bold text-slate-600">{selectedCourse.price === 0 ? "Free" : `$${selectedCourse.price}`}</span>
                     </div>
                   </div>
                   <div className="flex gap-2 shrink-0 flex-wrap">
-                    <button onClick={() => openEditCourse(selectedCourse)}
-                      className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold transition">
+                    <button onClick={() => openEditCourse(selectedCourse)} className="flex items-center gap-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-sm font-bold transition">
                       <Edit2 size={14} /> Edit
                     </button>
                     {(selectedCourse.status === "DRAFT" || selectedCourse.status === "REJECTED") && (
@@ -733,8 +703,7 @@ const InstructorDashboard = () => {
                         Submit for Review
                       </button>
                     )}
-                    <button onClick={() => handleDeleteCourse(selectedCourse.id)}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold transition">
+                    <button onClick={() => handleDeleteCourse(selectedCourse.id)} className="flex items-center gap-1.5 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl text-sm font-bold transition">
                       <Trash2 size={14} />
                     </button>
                   </div>
@@ -746,7 +715,7 @@ const InstructorDashboard = () => {
                     { label: "Students",   value: selectedCourse._count?.enrollments || 0, icon: <Users size={13} />, color: "text-blue-600" },
                     { label: "Lessons",    value: lessons.length || selectedCourse._count?.lessons || 0, icon: <BookOpen size={13} />, color: "text-violet-600" },
                     { label: "Avg Rating", value: reviews.averageRating ? `${reviews.averageRating}★` : "—", icon: <Star size={13} />, color: "text-amber-500" },
-                    { label: "Revenue",    value: `$${((selectedCourse._count?.enrollments || 0) * (selectedCourse.price || 0)).toLocaleString()}`, icon: <TrendingUp size={13} />, color: "text-emerald-600" },
+                    { label: "Revenue",    value: `$${((selectedCourse._count?.enrollments || 0) * (selectedCourse.price || 0) * 0.37).toFixed(0)}`, icon: <TrendingUp size={13} />, color: "text-emerald-600" },
                   ].map(({ label, value, icon, color }) => (
                     <div key={label} className="text-center">
                       <div className={`flex items-center justify-center gap-1 text-xs mb-1 ${color}`}>{icon}</div>
@@ -757,6 +726,13 @@ const InstructorDashboard = () => {
                 </div>
               </div>
             </div>
+
+            {/* Referral link card */}
+            {selectedCourse.status === "PUBLISHED" && selectedCourse.price > 0 && (
+              <div className="mb-5">
+                <ReferralLinkCard courseId={selectedCourse.id} courseTitle={selectedCourse.title} />
+              </div>
+            )}
 
             {/* Tabs */}
             <div className="flex gap-1 bg-slate-100 p-1 rounded-2xl mb-6 overflow-x-auto">
@@ -775,24 +751,17 @@ const InstructorDashboard = () => {
                 <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className="h-14 bg-slate-100 animate-pulse rounded-xl" />)}</div>
               ) : (
                 <>
-                  {/* LESSONS */}
                   {activeTab === TABS.LESSONS && (
                     <>
                       <div className="flex items-center justify-between mb-5">
-                        <div>
-                          <h3 className="font-black text-slate-900">Lessons</h3>
-                          <p className="text-xs text-slate-400">{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</p>
-                        </div>
+                        <div><h3 className="font-black text-slate-900">Lessons</h3><p className="text-xs text-slate-400">{lessons.length} lesson{lessons.length !== 1 ? "s" : ""}</p></div>
                         <button onClick={() => { setLessonForm({ title: "", content: "", type: "TEXT", order: 1 }); setVideoPreview(""); setCreateLessonOpen(true); }}
                           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition">
                           <Plus size={16} /> Add Lesson
                         </button>
                       </div>
                       {lessons.length === 0 ? (
-                        <div className="text-center py-10">
-                          <BookOpen size={36} className="text-slate-200 mx-auto mb-3" />
-                          <p className="font-bold text-slate-500">No lessons yet</p>
-                        </div>
+                        <div className="text-center py-10"><BookOpen size={36} className="text-slate-200 mx-auto mb-3" /><p className="font-bold text-slate-500">No lessons yet</p></div>
                       ) : (
                         <div className="space-y-3">
                           {lessons.map((lesson, idx) => (
@@ -807,8 +776,7 @@ const InstructorDashboard = () => {
                               </div>
                               <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition shrink-0">
                                 <button onClick={() => openEditLesson(lesson)} className="p-2 rounded-lg hover:bg-blue-100 text-slate-400 hover:text-blue-600 transition"><Edit2 size={14} /></button>
-                                <button onClick={() => handleDeleteLesson(lesson.id)} disabled={deleteLoading[lesson.id]}
-                                  className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
+                                <button onClick={() => handleDeleteLesson(lesson.id)} disabled={deleteLoading[lesson.id]} className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-500 transition">
                                   {deleteLoading[lesson.id] ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                                 </button>
                               </div>
@@ -819,31 +787,22 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* RESOURCES */}
                   {activeTab === TABS.RESOURCES && (
                     <>
                       <div className="flex items-center justify-between mb-5">
-                        <div>
-                          <h3 className="font-black text-slate-900">Resources</h3>
-                          <p className="text-xs text-slate-400">{resources.length} resource{resources.length !== 1 ? "s" : ""}</p>
-                        </div>
+                        <div><h3 className="font-black text-slate-900">Resources</h3><p className="text-xs text-slate-400">{resources.length} resource{resources.length !== 1 ? "s" : ""}</p></div>
                         <button onClick={() => { setResourceForm({ title: "", fileUrl: "" }); setResPreview(""); setAddResourceOpen(true); }}
                           className="flex items-center gap-2 bg-violet-600 hover:bg-violet-700 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition">
                           <Plus size={16} /> Add Resource
                         </button>
                       </div>
                       {resources.length === 0 ? (
-                        <div className="text-center py-10">
-                          <FileText size={36} className="text-slate-200 mx-auto mb-3" />
-                          <p className="font-bold text-slate-500">No resources yet</p>
-                        </div>
+                        <div className="text-center py-10"><FileText size={36} className="text-slate-200 mx-auto mb-3" /><p className="font-bold text-slate-500">No resources yet</p></div>
                       ) : (
                         <div className="space-y-3">
                           {resources.map((res) => (
                             <div key={res.id} className="flex items-center gap-3 p-4 rounded-2xl border border-slate-100 hover:bg-slate-50 transition">
-                              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
-                                <FileText size={15} className="text-violet-500" />
-                              </div>
+                              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center shrink-0"><FileText size={15} className="text-violet-500" /></div>
                               <div className="flex-1 min-w-0">
                                 <p className="font-bold text-slate-800 text-sm">{res.title}</p>
                                 <a href={res.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-500 hover:underline truncate block">{res.fileUrl}</a>
@@ -855,25 +814,16 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* QUIZZES */}
                   {activeTab === TABS.QUIZZES && (
                     <>
                       <div className="flex items-center justify-between mb-5">
-                        <div>
-                          <h3 className="font-black text-slate-900">Quizzes</h3>
-                          <p className="text-xs text-slate-400">{quizzes.length} quiz{quizzes.length !== 1 ? "zes" : ""}</p>
-                        </div>
-                        <button onClick={() => setCreateQuizOpen(true)}
-                          className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition">
+                        <div><h3 className="font-black text-slate-900">Quizzes</h3><p className="text-xs text-slate-400">{quizzes.length} quiz{quizzes.length !== 1 ? "zes" : ""}</p></div>
+                        <button onClick={() => setCreateQuizOpen(true)} className="flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-2.5 rounded-xl font-bold text-sm transition">
                           <Plus size={16} /> Create Quiz
                         </button>
                       </div>
                       {quizzes.length === 0 ? (
-                        <div className="text-center py-10">
-                          <HelpCircle size={36} className="text-slate-200 mx-auto mb-3" />
-                          <p className="font-bold text-slate-500">No quizzes yet</p>
-                          <p className="text-xs text-slate-400 mt-1">Create a quiz to test your students</p>
-                        </div>
+                        <div className="text-center py-10"><HelpCircle size={36} className="text-slate-200 mx-auto mb-3" /><p className="font-bold text-slate-500">No quizzes yet</p></div>
                       ) : (
                         <div className="space-y-4">
                           {quizzes.map((quiz) => (
@@ -883,21 +833,7 @@ const InstructorDashboard = () => {
                                   <h4 className="font-black text-slate-900">{quiz.title}</h4>
                                   <p className="text-xs text-slate-400 mt-0.5">{quiz.questions?.length || 0} questions · {quiz._count?.quizAttempts || 0} attempts</p>
                                 </div>
-                                <button onClick={() => handleDeleteQuiz(quiz.id)}
-                                  className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition shrink-0">
-                                  <Trash2 size={14} />
-                                </button>
-                              </div>
-                              <div className="space-y-2">
-                                {quiz.questions?.slice(0, 3).map((q, idx) => (
-                                  <div key={q.id} className="flex items-start gap-2 text-xs text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
-                                    <span className="font-black text-slate-400 shrink-0">{idx + 1}.</span>
-                                    <span className="truncate">{q.text}</span>
-                                  </div>
-                                ))}
-                                {quiz.questions?.length > 3 && (
-                                  <p className="text-xs text-slate-400 text-center">+{quiz.questions.length - 3} more questions</p>
-                                )}
+                                <button onClick={() => handleDeleteQuiz(quiz.id)} className="p-2 rounded-xl hover:bg-red-50 text-slate-400 hover:text-red-500 transition shrink-0"><Trash2 size={14} /></button>
                               </div>
                             </div>
                           ))}
@@ -906,7 +842,6 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* REVIEWS */}
                   {activeTab === TABS.REVIEWS && (
                     <>
                       <div className="mb-5">
@@ -914,28 +849,19 @@ const InstructorDashboard = () => {
                         {reviews.totalReviews > 0 && (
                           <div className="flex items-center gap-3 mt-2">
                             <span className="text-3xl font-black text-slate-900">{reviews.averageRating}</span>
-                            <div>
-                              <StarRating rating={reviews.averageRating} />
-                              <p className="text-xs text-slate-400 mt-0.5">{reviews.totalReviews} review{reviews.totalReviews !== 1 ? "s" : ""}</p>
-                            </div>
+                            <div><StarRating rating={reviews.averageRating} /><p className="text-xs text-slate-400 mt-0.5">{reviews.totalReviews} review{reviews.totalReviews !== 1 ? "s" : ""}</p></div>
                           </div>
                         )}
                       </div>
                       {!reviews.reviews?.length ? (
-                        <div className="text-center py-10">
-                          <Star size={36} className="text-slate-200 mx-auto mb-3" />
-                          <p className="font-bold text-slate-500">No reviews yet</p>
-                          <p className="text-xs text-slate-400 mt-1">Students will see a review form after enrolling</p>
-                        </div>
+                        <div className="text-center py-10"><Star size={36} className="text-slate-200 mx-auto mb-3" /><p className="font-bold text-slate-500">No reviews yet</p></div>
                       ) : (
                         <div className="space-y-4">
                           {reviews.reviews.map((r) => (
                             <div key={r.id} className="border border-slate-100 rounded-2xl p-4">
                               <div className="flex items-start gap-3">
                                 <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
-                                  {r.user?.avatarUrl
-                                    ? <img src={r.user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                                    : r.user?.fullName?.charAt(0)}
+                                  {r.user?.avatarUrl ? <img src={r.user.avatarUrl} alt="" className="w-full h-full object-cover" /> : r.user?.fullName?.charAt(0)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between gap-2">
@@ -953,19 +879,11 @@ const InstructorDashboard = () => {
                     </>
                   )}
 
-                  {/* STUDENTS */}
                   {activeTab === TABS.STUDENTS && (
                     <>
-                      <div className="mb-5">
-                        <h3 className="font-black text-slate-900">Enrolled Students</h3>
-                        <p className="text-xs text-slate-400">{students.length} student{students.length !== 1 ? "s" : ""} enrolled</p>
-                      </div>
+                      <div className="mb-5"><h3 className="font-black text-slate-900">Enrolled Students</h3><p className="text-xs text-slate-400">{students.length} student{students.length !== 1 ? "s" : ""} enrolled</p></div>
                       {students.length === 0 ? (
-                        <div className="text-center py-10">
-                          <Users size={36} className="text-slate-200 mx-auto mb-3" />
-                          <p className="font-bold text-slate-500">No students yet</p>
-                          <p className="text-xs text-slate-400 mt-1">Share your course to get your first student</p>
-                        </div>
+                        <div className="text-center py-10"><Users size={36} className="text-slate-200 mx-auto mb-3" /><p className="font-bold text-slate-500">No students yet</p></div>
                       ) : (
                         <div className="space-y-3">
                           {students.map((enrollment) => {
@@ -988,9 +906,7 @@ const InstructorDashboard = () => {
                                 </div>
                                 <div className="text-right shrink-0">
                                   {progress === 100 ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                                      <Trophy size={10} /> Done
-                                    </span>
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full"><Trophy size={10} /> Done</span>
                                   ) : (
                                     <span className="text-xs text-slate-400">{new Date(enrollment.enrolledAt).toLocaleDateString()}</span>
                                   )}
@@ -1008,49 +924,11 @@ const InstructorDashboard = () => {
           </div>
         </div>
 
-        {/* Modals rendered at Layout root — never inside conditional tab content */}
-        {createLessonOpen && (
-          <LessonFormModal
-            isEdit={false} onSubmit={handleCreateLesson} onClose={() => setCreateLessonOpen(false)}
-            lessonForm={lessonForm} setLessonForm={setLessonForm}
-            videoPreview={videoPreview} setVideoPreview={setVideoPreview}
-            uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload}
-            savingLesson={savingLesson}
-          />
-        )}
-        {editLessonOpen && (
-          <LessonFormModal
-            isEdit={true} onSubmit={handleEditLesson} onClose={() => { setEditLessonOpen(false); setEditingLesson(null); }}
-            lessonForm={lessonForm} setLessonForm={setLessonForm}
-            videoPreview={videoPreview} setVideoPreview={setVideoPreview}
-            uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload}
-            savingLesson={savingLesson}
-          />
-        )}
-        {editCourseOpen && (
-          <CourseFormModal
-            isEdit={true} onSubmit={handleEditCourse} onClose={() => setEditCourseOpen(false)}
-            courseForm={courseForm} setCourseForm={setCourseForm}
-            thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
-            submitting={submitting} savingCourse={savingCourse}
-          />
-        )}
-        {addResourceOpen && (
-          <ResourceModal
-            onSubmit={handleAddResource} onClose={() => setAddResourceOpen(false)}
-            resourceForm={resourceForm} setResourceForm={setResourceForm}
-            resPreview={resPreview} setResPreview={setResPreview}
-            uploadingRes={uploadingRes} handleResUpload={handleResUpload}
-            savingResource={savingResource}
-          />
-        )}
-        {createQuizOpen && (
-          <QuizBuilderModal
-            onClose={() => setCreateQuizOpen(false)} onSubmit={handleCreateQuiz}
-            quizForm={quizForm} setQuizForm={setQuizForm}
-            savingQuiz={savingQuiz}
-          />
-        )}
+        {createLessonOpen && <LessonFormModal isEdit={false} onSubmit={handleCreateLesson} onClose={() => setCreateLessonOpen(false)} lessonForm={lessonForm} setLessonForm={setLessonForm} videoPreview={videoPreview} setVideoPreview={setVideoPreview} uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload} savingLesson={savingLesson} />}
+        {editLessonOpen   && <LessonFormModal isEdit={true}  onSubmit={handleEditLesson}   onClose={() => { setEditLessonOpen(false); setEditingLesson(null); }} lessonForm={lessonForm} setLessonForm={setLessonForm} videoPreview={videoPreview} setVideoPreview={setVideoPreview} uploadingVideo={uploadingVideo} handleVideoUpload={handleVideoUpload} savingLesson={savingLesson} />}
+        {editCourseOpen   && <CourseFormModal isEdit={true}  onSubmit={handleEditCourse}   onClose={() => setEditCourseOpen(false)} courseForm={courseForm} setCourseForm={setCourseForm} thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb} submitting={submitting} savingCourse={savingCourse} />}
+        {addResourceOpen  && <ResourceModal  onSubmit={handleAddResource} onClose={() => setAddResourceOpen(false)} resourceForm={resourceForm} setResourceForm={setResourceForm} resPreview={resPreview} setResPreview={setResPreview} uploadingRes={uploadingRes} handleResUpload={handleResUpload} savingResource={savingResource} />}
+        {createQuizOpen   && <QuizBuilderModal onClose={() => setCreateQuizOpen(false)} onSubmit={handleCreateQuiz} quizForm={quizForm} setQuizForm={setQuizForm} savingQuiz={savingQuiz} />}
       </Layout>
     );
   }
@@ -1060,40 +938,47 @@ const InstructorDashboard = () => {
   // ══════════════════════════════════════════════════════════════════════════════
   return (
     <Layout>
-      {toast && (
-        <div className={`fixed top-5 right-5 z-[999] px-5 py-3 rounded-2xl text-white font-bold shadow-2xl text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
-          {toast.msg}
-        </div>
-      )}
+      {toast && <div className={`fixed top-5 right-5 z-[999] px-5 py-3 rounded-2xl text-white font-bold shadow-2xl text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>{toast.msg}</div>}
 
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 pt-28">
 
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <GraduationCap size={16} className="text-white" />
-                </div>
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center"><GraduationCap size={16} className="text-white" /></div>
                 <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">Instructor Portal</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">Your Courses</h1>
               <p className="text-slate-500 mt-1 text-sm">Create, manage and grow your teaching business</p>
             </div>
-            <button
-              onClick={() => { setCourseForm({ title: "", description: "", price: "", category: "Development" }); setThumbPreview(""); setCreateCourseOpen(true); }}
-              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/25 text-sm shrink-0">
-              <Plus size={18} /> New Course
-            </button>
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Quick links */}
+              <RouterLink to="/instructor/wallet"
+                className="flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-2 rounded-xl transition">
+                <Wallet size={13} /> Wallet {wallet ? `· ${fmt(wallet.availableBalance)}` : ""}
+              </RouterLink>
+              <RouterLink to="/instructor/coupons"
+                className="flex items-center gap-1.5 text-xs font-bold text-violet-700 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-3 py-2 rounded-xl transition">
+                <Tag size={13} /> Coupons
+              </RouterLink>
+              <button onClick={() => { setCourseForm({ title: "", description: "", price: "", category: "Development" }); setThumbPreview(""); setCreateCourseOpen(true); }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 active:scale-95 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg shadow-blue-600/25 text-sm shrink-0">
+                <Plus size={18} /> New Course
+              </button>
+            </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-10">
+          {/* Wallet + Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-10">
+            <div className="col-span-2">
+              <WalletSummary wallet={wallet} />
+            </div>
             <StatCard icon={BookOpen}    label="Total"     value={stats.total}     accent="bg-blue-500"    />
             <StatCard icon={CheckCircle} label="Published" value={stats.published} accent="bg-emerald-500" />
             <StatCard icon={Clock}       label="Pending"   value={stats.pending}   accent="bg-amber-500"   />
             <StatCard icon={Users}       label="Students"  value={stats.students}  accent="bg-violet-500"  />
-            <StatCard icon={TrendingUp}  label="Revenue"   value={`$${stats.revenue.toLocaleString()}`} accent="bg-rose-500" />
           </div>
 
           {/* Course list */}
@@ -1101,9 +986,7 @@ const InstructorDashboard = () => {
             <div className="grid gap-4">{[1,2,3].map((i) => <div key={i} className="h-28 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}</div>
           ) : courses.length === 0 ? (
             <div className="bg-white rounded-3xl border border-slate-100 p-16 text-center shadow-sm">
-              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <BookOpen size={28} className="text-blue-500" />
-              </div>
+              <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4"><BookOpen size={28} className="text-blue-500" /></div>
               <h3 className="font-black text-slate-800 text-lg mb-1">No courses yet</h3>
               <p className="text-slate-400 text-sm mb-6">Create your first course and start teaching</p>
               <button onClick={() => { setCourseForm({ title: "", description: "", price: "", category: "Development" }); setThumbPreview(""); setCreateCourseOpen(true); }}
@@ -1119,8 +1002,7 @@ const InstructorDashboard = () => {
                     <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 shadow-sm">
                       {course.thumbnail
                         ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-                        : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center"><FileText size={20} className="text-white" /></div>
-                      }
+                        : <div className="w-full h-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center"><FileText size={20} className="text-white" /></div>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
@@ -1131,29 +1013,23 @@ const InstructorDashboard = () => {
                         <StatusBadge status={course.status} />
                       </div>
                       <div className="flex flex-wrap items-center gap-3 mt-3">
-                        {course.category?.name && (
-                          <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-lg">{course.category.name}</span>
-                        )}
+                        {course.category?.name && <span className="text-xs bg-blue-50 text-blue-600 font-semibold px-2.5 py-1 rounded-lg">{course.category.name}</span>}
                         <span className="flex items-center gap-1 text-xs text-slate-400"><Users size={12} /> {course._count?.enrollments || 0} students</span>
                         <span className="text-xs text-slate-400 font-semibold">{course.price === 0 ? "Free" : `$${course.price}`}</span>
                         <span className="text-xs text-slate-400">{course._count?.lessons || 0} lessons</span>
-                        {course.averageRating > 0 && (
-                          <span className="flex items-center gap-1 text-xs text-amber-500 font-bold">
-                            <Star size={11} className="fill-amber-400" /> {course.averageRating}
+                        {course.price > 0 && course._count?.enrollments > 0 && (
+                          <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+                            <DollarSign size={11} /> {fmt((course._count.enrollments * course.price * 0.37))} earned
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => openCourse(course)}
-                        className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold transition">
+                      <button onClick={() => openCourse(course)} className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-xs font-bold transition">
                         <ChevronRight size={14} /> Manage
                       </button>
                       <div className="relative">
-                        <button onClick={() => setMenuOpen(menuOpen === course.id ? null : course.id)}
-                          className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition">
-                          <MoreVertical size={16} />
-                        </button>
+                        <button onClick={() => setMenuOpen(menuOpen === course.id ? null : course.id)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition"><MoreVertical size={16} /></button>
                         {menuOpen === course.id && (
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(null)} />
@@ -1180,22 +1056,8 @@ const InstructorDashboard = () => {
         </div>
       </div>
 
-      {createCourseOpen && (
-        <CourseFormModal
-          isEdit={false} onSubmit={handleCreateCourse} onClose={() => setCreateCourseOpen(false)}
-          courseForm={courseForm} setCourseForm={setCourseForm}
-          thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
-          submitting={submitting} savingCourse={savingCourse}
-        />
-      )}
-      {editCourseOpen && (
-        <CourseFormModal
-          isEdit={true} onSubmit={handleEditCourse} onClose={() => setEditCourseOpen(false)}
-          courseForm={courseForm} setCourseForm={setCourseForm}
-          thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb}
-          submitting={submitting} savingCourse={savingCourse}
-        />
-      )}
+      {createCourseOpen && <CourseFormModal isEdit={false} onSubmit={handleCreateCourse} onClose={() => setCreateCourseOpen(false)} courseForm={courseForm} setCourseForm={setCourseForm} thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb} submitting={submitting} savingCourse={savingCourse} />}
+      {editCourseOpen   && <CourseFormModal isEdit={true}  onSubmit={handleEditCourse}   onClose={() => setEditCourseOpen(false)} courseForm={courseForm} setCourseForm={setCourseForm} thumbPreview={thumbPreview} handleThumbUpload={handleThumbUpload} uploadingThumb={uploadingThumb} submitting={submitting} savingCourse={savingCourse} />}
     </Layout>
   );
 };
