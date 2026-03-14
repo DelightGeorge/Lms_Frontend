@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
   ArrowRight, Sparkles, ChevronRight,
   Play, Loader2, GraduationCap, Filter, Clock, Zap, Globe, X,
 } from "lucide-react";
-import { getAllCourses, getAllCategories } from "../services/courseService";
 import API from "../services/api";
 import Layout from "../shared/Layout/Layout";
 
@@ -257,9 +256,9 @@ const Home = () => {
                       value={searchInput}
                       onChange={(e) => handleLiveSearch(e.target.value)}
                       onFocus={() => { setHeroFocused(true); searchInput.trim() && setShowLive(true); }}
-                      onBlur={() => setTimeout(() => setHeroFocused(false), 150)}
+                      onBlur={() => setTimeout(() => { setHeroFocused(false); setShowLive(false); }, 300)}
                       placeholder="Search courses or find an instructor..."
-                      className="w-full bg-white/8 border border-white/15 rounded-xl py-4 pl-12 pr-10 outline-none focus:border-amber-400/50 focus:bg-white/12 transition placeholder:text-slate-400 text-sm text-white backdrop-blur-sm"
+                      className="w-full bg-white/15 border border-white/20 rounded-xl py-4 pl-12 pr-10 outline-none focus:bg-white focus:text-slate-900 focus:border-amber-400 focus:placeholder:text-slate-400 transition placeholder:text-slate-300 text-sm text-white backdrop-blur-sm"
                     />
                     {searchInput && (
                       <button type="button" onClick={clearLive}
@@ -276,7 +275,7 @@ const Home = () => {
 
                 {/* Live results dropdown */}
                 {showLive && (searchInput.trim()) && (
-                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden max-h-[420px] overflow-y-auto">
+                  <div onMouseDown={(e) => e.preventDefault()} className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden max-h-[420px] overflow-y-auto">
                     {liveLoading ? (
                       <div className="flex flex-col items-center justify-center py-8 gap-2">
                         <div className="relative w-8 h-8">

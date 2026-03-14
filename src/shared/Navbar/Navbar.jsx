@@ -5,9 +5,9 @@ import {
   GraduationCap, ShieldCheck, Home, TrendingUp,
   Flame, Zap, Star, Users, ArrowRight, Loader2,
 } from "lucide-react";
-import { NavLink, Link, useNavigate, useLocation, } from "react-router-dom";
-import API from "../../services/api";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
 
 
 const Navbar = () => {
@@ -292,7 +292,7 @@ const Navbar = () => {
                   value={searchQuery}
                   onChange={(e) => handleSearchChange(e.target.value)}
                   onFocus={() => { setSearchFocused(true); searchQuery.trim() && setShowDropdown(true); }}
-                  onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                  onBlur={() => setTimeout(() => { setSearchFocused(false); setShowDropdown(false); }, 300)}
                   placeholder={placeholders[placeholderIdx]}
                   className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all" 
                 />
@@ -317,7 +317,7 @@ const Navbar = () => {
 
               {/* Live results dropdown */}
               {showDropdown && (searchResults.courses.length > 0 || searchResults.instructors.length > 0 || searchLoading) && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden"
+                <div onMouseDown={(e) => e.preventDefault()} className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden"
                   style={{ maxHeight: "520px", overflowY: "auto" }}>
 
                   {searchLoading ? (
@@ -589,7 +589,7 @@ const Navbar = () => {
 
             {/* Mobile live results */}
             {showDropdown && (searchResults.courses.length > 0 || searchResults.instructors.length > 0 || searchLoading) && (
-              <div className="mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden max-h-[60vh] overflow-y-auto">
+              <div onMouseDown={(e) => e.preventDefault()} className="mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden max-h-[60vh] overflow-y-auto">
                 {searchLoading ? (
                   <div className="flex flex-col items-center justify-center py-8 gap-3">
                     <div className="relative w-9 h-9">
