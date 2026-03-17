@@ -11,6 +11,8 @@ import {
 } from "../../services/adminService";
 import { getNotifications, markNotificationAsRead } from "../../services/notificationService";
 import API from "../../services/api";
+import { useAuth } from "../../Context/AuthContext";
+import Layout from "../../shared/Layout/Layout";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
