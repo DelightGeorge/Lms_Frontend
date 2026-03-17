@@ -48,6 +48,7 @@ import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Cookies from "./pages/Cookies.jsx";
 import Contact from "./pages/Contact.jsx";
+import ForInstructors from "./pages/ForInstructors.jsx";
 
 const router = createBrowserRouter([
   {
