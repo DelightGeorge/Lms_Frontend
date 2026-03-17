@@ -100,9 +100,9 @@ export default function InstructorApplicationPage() {
   const [toast,   setToast]   = useState(null);
 
   // Upload states
-  const [uploadingId,    setUploadingId]    = useState(false);
-  const [uploadingCv,    setUploadingCv]    = useState(false);
-  const [uploadingVideo,    setUploadingVideo]    = useState(false);
+  const [uploadingId,        setUploadingId]        = useState(false);
+  const [uploadingCv,        setUploadingCv]        = useState(false);
+  const [uploadingVideo,     setUploadingVideo]     = useState(false);
   const [uploadingPortfolio, setUploadingPortfolio] = useState(false);
 
   // Form state
@@ -153,6 +153,14 @@ export default function InstructorApplicationPage() {
     try { set("sampleVideoUrl", await uploadFile(file, "lmspro/samples")); }
     catch { showToast("Video upload failed. Try again.", "error"); }
     finally { setUploadingVideo(false); }
+  };
+
+  // ✅ FIX: Added missing handleUploadPortfolio handler
+  const handleUploadPortfolio = async (file) => {
+    setUploadingPortfolio(true);
+    try { set("portfolioUrl", await uploadFile(file)); }
+    catch { showToast("Portfolio upload failed. Try again.", "error"); }
+    finally { setUploadingPortfolio(false); }
   };
 
   // ── Step validation ────────────────────────────────────────────────────
