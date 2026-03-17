@@ -1,14 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
   ArrowRight, Sparkles, ChevronRight,
   Play, Loader2, GraduationCap, Filter, Clock, Zap, Globe, X,
 } from "lucide-react";
+import { getAllCourses, getAllCategories } from "../services/courseService";
 import API from "../services/api";
 import Layout from "../shared/Layout/Layout";
-import { getAllCategories, getAllCourses } from "../services/courseService";
 
 
 // ── Placeholder images ───────────────────────────────────
@@ -214,8 +214,23 @@ const Home = () => {
   });
 
   const categoryTabs    = ["All", ...categories.map((c) => c.name)];
-  const featuredCourses = courses.filter((c) => c.status === "PUBLISHED").slice(0, 4);
-  const publishedCount  = courses.filter((c) => c.status === "PUBLISHED").length;
+  const publishedCourses = courses.filter((c) => c.status === "PUBLISHED");
+  const featuredCourses  = publishedCourses.slice(0, 4);
+  const featuredIds      = new Set(featuredCourses.map((c) => c.id));
+  const publishedCount   = publishedCourses.length;
+
+  // Browse section: exclude featured courses so the two sections are always different
+  const browseCourses = publishedCourses.filter((c) => !featuredIds.has(c.id));
+  const filteredBrowse = browseCourses.filter((c) => {
+    const matchesTab    = activeTab === "All" || c.category?.name?.toLowerCase() === activeTab.toLowerCase();
+    const matchesSearch = !searchQuery ||
+      c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.instructor?.fullName?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesTab && matchesSearch;
+  });
+  const browseVisible  = filteredBrowse.slice(0, 4);
+  const browseHasMore  = filteredBrowse.length > 4;
 
   return (
     <Layout>
@@ -425,6 +440,14 @@ const Home = () => {
                       <PremiumCourseCard key={course.id} course={course} idx={idx} />
                     ))}
               </div>
+              {!loadingCourses && publishedCount > 4 && (
+                <div className="flex justify-center mt-10">
+                  <Link to="/courses"
+                    className="inline-flex items-center gap-2 border-2 border-amber-500/40 text-amber-600 hover:bg-amber-50 font-black px-8 py-3.5 rounded-xl transition text-sm">
+                    See All Trending <ArrowRight size={16} />
+                  </Link>
+                </div>
+              )}
             </section>
           )}
 
@@ -436,7 +459,7 @@ const Home = () => {
                   {searchQuery ? `Results for "${searchQuery}"` : "All Courses"}
                 </h2>
                 <p className="text-slate-600 mt-2">
-                  {filteredCourses.length} course{filteredCourses.length !== 1 ? "s" : ""} available
+                  {filteredBrowse.length} course{filteredBrowse.length !== 1 ? "s" : ""} available
                 </p>
               </div>
               {searchQuery && (
@@ -464,22 +487,32 @@ const Home = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {[1,2,3,4,5,6,7,8].map((i) => <CourseSkeleton key={i} />)}
               </div>
-            ) : filteredCourses.length === 0 ? (
+            ) : filteredBrowse.length === 0 ? (
               <div className="text-center py-20">
                 <BookOpen size={56} className="text-slate-200 mx-auto mb-4" />
                 <p className="font-bold text-slate-600 text-xl">
-                  {searchQuery ? "No courses found" : "No published courses yet"}
+                  {searchQuery ? "No courses found" : "No more courses yet"}
                 </p>
                 <p className="text-slate-500 text-sm mt-2">
                   {searchQuery ? "Try different keywords" : "Check back soon!"}
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {filteredCourses.map((course, idx) => (
-                  <PremiumCourseCard key={course.id} course={course} idx={idx} />
-                ))}
-              </div>
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {browseVisible.map((course, idx) => (
+                    <PremiumCourseCard key={course.id} course={course} idx={idx} />
+                  ))}
+                </div>
+                {browseHasMore && (
+                  <div className="flex justify-center mt-10">
+                    <Link to="/courses"
+                      className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black px-8 py-3.5 rounded-xl transition shadow-lg shadow-amber-500/20 text-sm active:scale-95">
+                      See All Courses <ArrowRight size={16} />
+                    </Link>
+                  </div>
+                )}
+              </>
             )}
           </section>
 
