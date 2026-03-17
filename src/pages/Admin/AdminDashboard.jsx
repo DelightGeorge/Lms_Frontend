@@ -3,6 +3,7 @@ import {
   AlertCircle, CheckCircle, Trash2, Loader2, Bell, Users,
   BookOpen, Clock, X, Award, DollarSign, Activity,
   Search, Banknote, ShieldCheck, TrendingUp, BarChart3,
+  GraduationCap, FileText, ExternalLink, Eye,
 } from "lucide-react";
 import Layout from "../../shared/Layout/Layout";
 import { useAuth } from "../../Context/AuthContext";
@@ -13,7 +14,7 @@ const adminAPI = {
   getStats:        () => API.get("/admin/stats"),
   getAnalytics:    () => API.get("/admin/analytics"),
   getPending:      () => API.get("/admin/courses/pending"),
-  getAllCourses:    () => API.get("/admin/courses"),
+  getAllCourses:    () => API.get("/admin/courses/all"),
   reviewCourse:    (id, body) => API.patch(`/admin/courses/${id}/review`, body),
   getAllUsers:      () => API.get("/admin/users"),
   deleteUser:      (id) => API.delete(`/admin/users/${id}`),
@@ -21,6 +22,8 @@ const adminAPI = {
   approvePayout:   (id, note) => API.patch(`/wallet/admin/payouts/${id}/approve`, { adminNote: note }),
   rejectPayout:    (id, note) => API.patch(`/wallet/admin/payouts/${id}/reject`,  { adminNote: note }),
   getNotifications:() => API.get("/notifications"),
+  getApplications: () => API.get("/instructor-applications"),
+  reviewApplication:(id,body) => API.patch(`/instructor-applications/${id}/review`, body),
 };
 
 const AdminDashboard = () => {
@@ -33,6 +36,7 @@ const AdminDashboard = () => {
   const [allCourses,     setAllCourses]     = useState([]);
   const [users,          setUsers]          = useState([]);
   const [payouts,        setPayouts]        = useState([]);
+  const [applications,   setApplications]   = useState([]);
   const [notifications,  setNotifications]  = useState([]);
 
   const [loadingStats,   setLoadingStats]   = useState(true);
@@ -43,6 +47,9 @@ const AdminDashboard = () => {
   const [rejectingId,      setRejectingId]      = useState(null);
   const [deletingId,       setDeletingId]       = useState(null);
   const [processingPayout, setProcessingPayout] = useState(null);
+  const [processingApp,   setProcessingApp]   = useState(null);
+  const [appModal,        setAppModal]        = useState(null);
+  const [appRejectReason, setAppRejectReason] = useState("");
 
   const [toast,           setToast]           = useState(null);
   const [rejectModal,     setRejectModal]     = useState(null);
@@ -69,9 +76,15 @@ const AdminDashboard = () => {
         totalUsers:      sd.totalUsers      || 0,
         totalEnrollments:sd.totalEnrollments|| 0,
         pendingApprovals:sd.pendingCourses  || 0,
+        pendingApps:     0,
         totalRevenue:    sd.totalRevenue    || 0,
         totalInstructors:(a.data?.topInstructors?.length) || 0,
       });
+      // Also fetch pending instructor applications count
+      adminAPI.getApplications().then((r) => {
+        const apps = Array.isArray(r.data) ? r.data : [];
+        setApplications(apps);
+      }).catch(() => {});
       setAnalytics(a.data || null);
       setNotifications(Array.isArray(n.data) ? n.data : []);
     }).finally(() => setLoadingStats(false));
@@ -86,6 +99,7 @@ const AdminDashboard = () => {
       pending:  () => adminAPI.getPending().then((r)      => setPendingCourses(Array.isArray(r.data) ? r.data : [])),
       courses:  () => adminAPI.getAllCourses().then((r)    => setAllCourses(Array.isArray(r.data) ? r.data : [])),
       users:    () => adminAPI.getAllUsers().then((r)      => setUsers(Array.isArray(r.data) ? r.data : [])),
+      applications: () => adminAPI.getApplications().then((r) => setApplications(Array.isArray(r.data) ? r.data : [])),
       payouts:  () => adminAPI.getPayouts().then((r)      => {
         const list = Array.isArray(r.data) ? r.data : (r.data?.payouts || r.data?.requests || []);
         setPayouts(list);
@@ -100,7 +114,7 @@ const AdminDashboard = () => {
   const approveCourse = async (id, title) => {
     setApprovingId(id);
     try {
-      await adminAPI.reviewCourse(id, { status: "PUBLISHED" });
+      await adminAPI.reviewCourse(id, { approve: true });
       setPendingCourses((p) => p.filter((c) => c.id !== id));
       setStats((s) => ({ ...s, pendingApprovals: Math.max(0, s.pendingApprovals - 1) }));
       toast$(`"${title}" approved!`);
@@ -112,7 +126,7 @@ const AdminDashboard = () => {
     if (!rejectModal || !rejectReason.trim()) { toast$("Please provide a reason", "error"); return; }
     setRejectingId(rejectModal.id);
     try {
-      await adminAPI.reviewCourse(rejectModal.id, { status: "REJECTED", rejectionReason: rejectReason });
+      await adminAPI.reviewCourse(rejectModal.id, { approve: false, rejectionReason: rejectReason });
       setPendingCourses((p) => p.filter((c) => c.id !== rejectModal.id));
       setStats((s) => ({ ...s, pendingApprovals: Math.max(0, s.pendingApprovals - 1) }));
       toast$(`"${rejectModal.title}" rejected.`);
@@ -131,6 +145,24 @@ const AdminDashboard = () => {
       toast$("User deleted.");
     } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
     finally { setDeletingId(null); }
+  };
+
+  const reviewApp = async (approve) => {
+    if (!appModal) return;
+    if (!approve && !appRejectReason.trim()) { toast$("Please provide a rejection reason", "error"); return; }
+    setProcessingApp(appModal.id);
+    try {
+      await adminAPI.reviewApplication(appModal.id, {
+        approve,
+        rejectionReason: approve ? undefined : appRejectReason,
+      });
+      setApplications((prev) => prev.map((a) =>
+        a.id === appModal.id ? { ...a, status: approve ? "APPROVED" : "REJECTED" } : a
+      ));
+      toast$(approve ? `${appModal.user?.fullName} approved as instructor!` : "Application rejected.");
+      setAppModal(null); setAppRejectReason("");
+    } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
+    finally { setProcessingApp(null); }
   };
 
   const processPayout = async (action) => {
@@ -162,6 +194,7 @@ const AdminDashboard = () => {
   );
   const filteredPayouts  = payouts.filter((p) => filterStatus === "all" || p.status === filterStatus);
   const pendingPayoutCount = payouts.filter((p) => p.status === "PENDING").length;
+  const pendingAppsCount   = applications.filter((a) => a.status === "PENDING").length;
 
   if (user?.role !== "ADMIN") return (
     <Layout hideFloatingBar>
@@ -181,6 +214,7 @@ const AdminDashboard = () => {
     { id: "courses",  label: "All Courses",       icon: BookOpen                                 },
     { id: "users",    label: "Users",             icon: Users                                    },
     { id: "payouts",  label: "Payouts",           icon: Banknote,  badge: pendingPayoutCount     },
+    { id: "applications", label: "Instructor Apps",  icon: GraduationCap, badge: pendingAppsCount },
   ];
 
   return (
@@ -538,6 +572,142 @@ const AdminDashboard = () => {
         </div>
       </div>
 
+          {/* ── Instructor Applications ─────────────────────────────────── */}
+          {activeTab === "applications" && (
+            <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-black text-slate-900">Instructor Applications</h2>
+                {pendingAppsCount > 0 && (
+                  <span className="bg-amber-100 text-amber-700 text-sm font-black px-3 py-1.5 rounded-full">{pendingAppsCount} pending</span>
+                )}
+              </div>
+
+              {/* Filter buttons */}
+              <div className="flex gap-2 flex-wrap">
+                {["all","PENDING","APPROVED","REJECTED"].map((s) => (
+                  <button key={s} onClick={() => setFilterStatus(s)}
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${filterStatus === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+                    {s === "all" ? "All" : s}
+                  </button>
+                ))}
+              </div>
+
+              {loadingContent ? (
+                <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-blue-500" /></div>
+              ) : applications.filter((a) => filterStatus === "all" || a.status === filterStatus).length === 0 ? (
+                <div className="text-center py-12">
+                  <GraduationCap size={48} className="text-slate-300 mx-auto mb-3" />
+                  <p className="text-slate-600 font-semibold">No applications found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {applications
+                    .filter((a) => filterStatus === "all" || a.status === filterStatus)
+                    .map((app) => (
+                    <div key={app.id} className="border border-slate-100 rounded-2xl p-6 hover:shadow-md transition">
+                      <div className="flex items-start gap-4">
+                        {/* Avatar */}
+                        <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-lg shrink-0">
+                          {app.user?.avatarUrl
+                            ? <img src={app.user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                            : app.user?.fullName?.[0]}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-3 flex-wrap">
+                            <div>
+                              <p className="font-black text-slate-900">{app.user?.fullName}</p>
+                              <p className="text-sm text-slate-500">{app.user?.email}</p>
+                            </div>
+                            <span className={`text-xs font-black px-3 py-1.5 rounded-full shrink-0 ${
+                              app.status === "PENDING"  ? "bg-amber-100 text-amber-700" :
+                              app.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" :
+                                                          "bg-red-100 text-red-700"
+                            }`}>{app.status}</span>
+                          </div>
+
+                          {/* Application details */}
+                          <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Headline</p>
+                              <p className="text-sm font-semibold text-slate-800 line-clamp-2">{app.headline}</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Expertise</p>
+                              <p className="text-sm font-semibold text-slate-800">{app.expertise}</p>
+                            </div>
+                            <div className="bg-slate-50 rounded-xl p-3">
+                              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Experience</p>
+                              <p className="text-sm font-semibold text-slate-800">{app.yearsExperience} year{app.yearsExperience !== 1 ? "s" : ""}</p>
+                            </div>
+                          </div>
+
+                          {/* Bio */}
+                          <div className="mt-3 bg-slate-50 rounded-xl p-3">
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Bio / Teaching Motivation</p>
+                            <p className="text-sm text-slate-600 line-clamp-3">{app.bio}</p>
+                          </div>
+
+                          {/* Documents */}
+                          <div className="mt-3 flex gap-2 flex-wrap">
+                            {app.idDocumentUrl && (
+                              <a href={app.idDocumentUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
+                                <FileText size={12} /> ID Document <ExternalLink size={10} />
+                              </a>
+                            )}
+                            {app.cvUrl && (
+                              <a href={app.cvUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition">
+                                <FileText size={12} /> CV / Resume <ExternalLink size={10} />
+                              </a>
+                            )}
+                            {app.portfolioUrl && (
+                              <a href={app.portfolioUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition">
+                                <ExternalLink size={12} /> Portfolio
+                              </a>
+                            )}
+                            {app.sampleVideoUrl && (
+                              <a href={app.sampleVideoUrl} target="_blank" rel="noopener noreferrer"
+                                className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition">
+                                <Eye size={12} /> Sample Video
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Rejection reason if rejected */}
+                          {app.status === "REJECTED" && app.rejectionReason && (
+                            <div className="mt-3 bg-red-50 border border-red-100 rounded-xl p-3">
+                              <p className="text-xs font-bold text-red-500 mb-1">Rejection Reason</p>
+                              <p className="text-sm text-red-700">{app.rejectionReason}</p>
+                            </div>
+                          )}
+
+                          {/* Submission date */}
+                          <p className="text-xs text-slate-400 mt-3">
+                            Submitted {new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                            {app.reviewedBy && ` · Reviewed by ${app.reviewedBy.fullName}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Action buttons for pending */}
+                      {app.status === "PENDING" && (
+                        <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
+                          <button onClick={() => { setAppModal(app); setAppRejectReason(""); }}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm transition">
+                            <Eye size={14} /> Review Application
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
       {/* Reject Course Modal */}
       {rejectModal && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4">
@@ -607,6 +777,82 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+      {/* Instructor Application Review Modal */}
+      {appModal && (
+        <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full p-8 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-black text-slate-900">Review Application</h3>
+              <button onClick={() => setAppModal(null)} className="text-slate-400 hover:text-slate-600"><X size={22} /></button>
+            </div>
+
+            {/* Applicant */}
+            <div className="flex items-center gap-3 bg-slate-50 rounded-2xl p-4">
+              <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black shrink-0">
+                {appModal.user?.avatarUrl ? <img src={appModal.user.avatarUrl} alt="" className="w-full h-full object-cover" /> : appModal.user?.fullName?.[0]}
+              </div>
+              <div>
+                <p className="font-black text-slate-900">{appModal.user?.fullName}</p>
+                <p className="text-sm text-slate-500">{appModal.user?.email}</p>
+                <p className="text-xs text-slate-400">{appModal.expertise} · {appModal.yearsExperience} yrs exp</p>
+              </div>
+            </div>
+
+            {/* Motivation */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Teaching Motivation</p>
+              <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-4">{appModal.teachingMotivation}</p>
+            </div>
+
+            {/* Documents */}
+            <div>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Submitted Documents</p>
+              <div className="flex flex-col gap-2">
+                {[
+                  { label: "ID Document", url: appModal.idDocumentUrl, required: true },
+                  { label: "CV / Resume", url: appModal.cvUrl, required: true },
+                  { label: "Portfolio",   url: appModal.portfolioUrl,  required: false },
+                  { label: "Sample Video",url: appModal.sampleVideoUrl,required: false },
+                ].map(({ label, url, required }) => url ? (
+                  <a key={label} href={url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl px-4 py-3 transition group">
+                    <div className="flex items-center gap-2">
+                      <FileText size={15} className="text-blue-500" />
+                      <span className="text-sm font-bold text-blue-700">{label}</span>
+                      {required && <span className="text-[10px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded font-bold">Required</span>}
+                    </div>
+                    <ExternalLink size={13} className="text-blue-400 group-hover:text-blue-600" />
+                  </a>
+                ) : null)}
+              </div>
+            </div>
+
+            {/* Reject reason textarea */}
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-2">
+                Rejection Reason <span className="text-slate-400 font-normal">(only needed if rejecting)</span>
+              </label>
+              <textarea value={appRejectReason} onChange={(e) => setAppRejectReason(e.target.value)}
+                placeholder="Explain why the application is not approved. The applicant will receive this as a notification..."
+                rows={3} className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 transition resize-none text-sm" />
+            </div>
+
+            <div className="flex gap-3">
+              <button onClick={() => reviewApp(false)} disabled={processingApp === appModal.id}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
+                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
+                Reject
+              </button>
+              <button onClick={() => reviewApp(true)} disabled={processingApp === appModal.id}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
+                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
+                Approve as Instructor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </Layout>
   );
 };
