@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-
+import { Link, useNavigate } from "react-router-dom";
+import Layout from "../shared/Layout/Layout";
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
   ArrowRight, Sparkles, ChevronRight,
@@ -8,8 +8,6 @@ import {
 } from "lucide-react";
 import { getAllCourses, getAllCategories } from "../services/courseService";
 import API from "../services/api";
-import Layout from "../shared/Layout/Layout";
-
 
 // ── Placeholder images ───────────────────────────────────
 const placeholderImgs = [
@@ -213,15 +211,25 @@ const Home = () => {
     return matchesTab && matchesSearch && c.status === "PUBLISHED";
   });
 
-  const categoryTabs    = ["All", ...categories.map((c) => c.name)];
+  const categoryTabs     = ["All", ...categories.map((c) => c.name)];
   const publishedCourses = courses.filter((c) => c.status === "PUBLISHED");
-  const featuredCourses  = publishedCourses.slice(0, 4);
-  const featuredIds      = new Set(featuredCourses.map((c) => c.id));
   const publishedCount   = publishedCourses.length;
 
-  // Browse section: exclude featured courses so the two sections are always different
-  const browseCourses = publishedCourses.filter((c) => !featuredIds.has(c.id));
-  const filteredBrowse = browseCourses.filter((c) => {
+  // Featured: first 4 published — shown when no search/filter active
+  const featuredCourses = publishedCourses.slice(0, 4);
+  const featuredIds     = new Set(featuredCourses.map((c) => c.id));
+
+  // Browse section:
+  // Always filter from ALL published courses (so nothing gets hidden when <= 4 total)
+  // When idle (no search, All tab): exclude featured only if there are MORE than 4 courses
+  const isFiltering    = !!searchQuery || activeTab !== "All";
+  const hasExtraCourses = publishedCourses.length > 4;
+
+  const browsePool = (isFiltering || !hasExtraCourses)
+    ? publishedCourses
+    : publishedCourses.filter((c) => !featuredIds.has(c.id));
+
+  const filteredBrowse = browsePool.filter((c) => {
     const matchesTab    = activeTab === "All" || c.category?.name?.toLowerCase() === activeTab.toLowerCase();
     const matchesSearch = !searchQuery ||
       c.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -229,8 +237,10 @@ const Home = () => {
       c.instructor?.fullName?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesTab && matchesSearch;
   });
-  const browseVisible  = filteredBrowse.slice(0, 4);
-  const browseHasMore  = filteredBrowse.length > 4;
+
+  // Show all when filtering/searching; show 4 with "See All" button when idle
+  const browseVisible = isFiltering ? filteredBrowse : filteredBrowse.slice(0, 4);
+  const browseHasMore = !isFiltering && filteredBrowse.length > 4;
 
   return (
     <Layout>
@@ -459,7 +469,7 @@ const Home = () => {
                   {searchQuery ? `Results for "${searchQuery}"` : "All Courses"}
                 </h2>
                 <p className="text-slate-600 mt-2">
-                  {filteredBrowse.length} course{filteredBrowse.length !== 1 ? "s" : ""} available
+                  {isFiltering ? filteredBrowse.length : publishedCount} course{(isFiltering ? filteredBrowse.length : publishedCount) !== 1 ? "s" : ""} available
                 </p>
               </div>
               {searchQuery && (
