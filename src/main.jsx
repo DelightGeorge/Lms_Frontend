@@ -34,7 +34,20 @@ import StudentProfilePage from "./pages/Student/StudentProfilePage.jsx";
 import InstructorPublicProfile from "./pages/InstructorPublicProfile.jsx";
 import InstructorsPage from "./pages/InstructorsPage.jsx";
 import PageLoader from "./Components/PageLoader.jsx";
-
+import ForBusinesses from "./pages/ForBusinesses.jsx";
+import Pricing from "./pages/Pricing.jsx";
+import AboutUs from "./pages/AboutUs.jsx";
+import Careers from "./pages/Careers.jsx";
+import Blog from "./pages/Blog.jsx";
+import Press from "./pages/Press.jsx";
+import HelpCenter from "./pages/HelpCenter.jsx";
+import Community from "./pages/Community.jsx";
+import Documentation from "./pages/Documentation.jsx";
+import ApiReference from "./pages/ApiReference.jsx";
+import Terms from "./pages/Terms.jsx";
+import Privacy from "./pages/Privacy.jsx";
+import Cookies from "./pages/Cookies.jsx";
+import Contact from "./pages/Contact.jsx";
 
 const router = createBrowserRouter([
   {
@@ -63,9 +76,27 @@ const router = createBrowserRouter([
       { path: "/certificate/:courseId", element: <CertificatePage /> },
       { path: "/student-profile", element: <StudentProfilePage /> },
       { path: "/student-profile/:userId", element: <StudentProfilePage /> },
-      { path: "/instructors/:instructorId", element: <InstructorPublicProfile /> },
+      {
+        path: "/instructors/:instructorId",
+        element: <InstructorPublicProfile />,
+      },
       { path: "/instructors", element: <InstructorsPage /> },
       { path: "/instructor/wallet", element: <WalletPage /> },
+      { path: "/for-instructors", element: <ForInstructors /> },
+      { path: "/for-businesses", element: <ForBusinesses /> },
+      { path: "/pricing", element: <Pricing /> },
+      { path: "/about", element: <AboutUs /> },
+      { path: "/careers", element: <Careers /> },
+      { path: "/blog", element: <Blog /> },
+      { path: "/press", element: <Press /> },
+      { path: "/help", element: <HelpCenter /> },
+      { path: "/community", element: <Community /> },
+      { path: "/docs", element: <Documentation /> },
+      { path: "/api-reference", element: <ApiReference /> },
+      { path: "/terms", element: <Terms /> },
+      { path: "/privacy", element: <Privacy /> },
+      { path: "/cookies", element: <Cookies /> },
+      { path: "/contact", element: <Contact /> },
       {
         path: "/admin/instructor-applications",
         element: <AdminInstructorApplicationsPage />,

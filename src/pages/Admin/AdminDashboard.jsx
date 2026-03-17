@@ -1,208 +1,167 @@
 import React, { useState, useEffect } from "react";
 import {
   AlertCircle, CheckCircle, Trash2, Loader2, Bell, Users,
-  BookOpen, TrendingUp, Clock, X, Award, DollarSign, Activity,
-  Search, Banknote, ShieldCheck, Eye,
+  BookOpen, Clock, X, Award, DollarSign, Activity,
+  Search, Banknote, ShieldCheck, TrendingUp, BarChart3,
 } from "lucide-react";
-
-import {
-  getAdminStats, getAnalytics, getPendingCourses, getAllCourses,
-  reviewCourse, getAllUsers, deleteUser,
-} from "../../services/adminService";
-import { getNotifications, markNotificationAsRead } from "../../services/notificationService";
-import API from "../../services/api";
-import { useAuth } from "../../Context/AuthContext";
 import Layout from "../../shared/Layout/Layout";
+import { useAuth } from "../../Context/AuthContext";
+import API from "../../services/api";
+
+// ── All API calls go directly through API (no adminService dependency issues) ─
+const adminAPI = {
+  getStats:        () => API.get("/admin/stats"),
+  getAnalytics:    () => API.get("/admin/analytics"),
+  getPending:      () => API.get("/admin/courses/pending"),
+  getAllCourses:    () => API.get("/admin/courses"),
+  reviewCourse:    (id, body) => API.patch(`/admin/courses/${id}/review`, body),
+  getAllUsers:      () => API.get("/admin/users"),
+  deleteUser:      (id) => API.delete(`/admin/users/${id}`),
+  getPayouts:      () => API.get("/wallet/admin/payouts"),
+  approvePayout:   (id, note) => API.patch(`/wallet/admin/payouts/${id}/approve`, { adminNote: note }),
+  rejectPayout:    (id, note) => API.patch(`/wallet/admin/payouts/${id}/reject`,  { adminNote: note }),
+  getNotifications:() => API.get("/notifications"),
+};
 
 const AdminDashboard = () => {
   const { user } = useAuth();
 
-  const [stats, setStats] = useState({
-    totalCourses: 0, totalUsers: 0, totalInstructors: 0,
-    pendingApprovals: 0, totalRevenue: 0, activeInstructors: 0,
-  });
+  // ── State ───────────────────────────────────────────────────────────────────
+  const [stats,          setStats]          = useState({ totalCourses: 0, totalUsers: 0, totalInstructors: 0, pendingApprovals: 0, totalRevenue: 0, totalEnrollments: 0 });
+  const [analytics,      setAnalytics]      = useState(null);
+  const [pendingCourses, setPendingCourses] = useState([]);
+  const [allCourses,     setAllCourses]     = useState([]);
+  const [users,          setUsers]          = useState([]);
+  const [payouts,        setPayouts]        = useState([]);
+  const [notifications,  setNotifications]  = useState([]);
 
-  const [pendingCourses,  setPendingCourses]  = useState([]);
-  const [allCourses,      setAllCourses]      = useState([]);
-  const [users,           setUsers]           = useState([]);
-  const [notifications,   setNotifications]   = useState([]);
-  const [payouts,         setPayouts]         = useState([]);
+  const [loadingStats,   setLoadingStats]   = useState(true);
+  const [loadingContent, setLoadingContent] = useState(false);
+  const [loadingNotifs,  setLoadingNotifs]  = useState(false);
 
-  const [loadingCourses,  setLoadingCourses]  = useState(false);
-  const [loadingUsers,    setLoadingUsers]    = useState(false);
-  const [loadingNotifs,   setLoadingNotifs]   = useState(false);
-  const [loadingPayouts,  setLoadingPayouts]  = useState(false);
-  const [loading,         setLoading]         = useState(true);
-
-  const [approvingId,     setApprovingId]     = useState(null);
-  const [rejectingId,     setRejectingId]     = useState(null);
-  const [deletingUserId,  setDeletingUserId]  = useState(null);
+  const [approvingId,      setApprovingId]      = useState(null);
+  const [rejectingId,      setRejectingId]      = useState(null);
+  const [deletingId,       setDeletingId]       = useState(null);
   const [processingPayout, setProcessingPayout] = useState(null);
 
   const [toast,           setToast]           = useState(null);
-  const [showRejectModal, setShowRejectModal] = useState(null);
+  const [rejectModal,     setRejectModal]     = useState(null);
   const [rejectReason,    setRejectReason]    = useState("");
-  const [showPayoutModal, setShowPayoutModal] = useState(null);
+  const [payoutModal,     setPayoutModal]     = useState(null);
   const [payoutNote,      setPayoutNote]      = useState("");
-  const [activeTab,       setActiveTab]       = useState("pending");
+  const [activeTab,       setActiveTab]       = useState("overview");
   const [searchTerm,      setSearchTerm]      = useState("");
   const [filterStatus,    setFilterStatus]    = useState("all");
 
-  const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3500);
-  };
+  const toast$ = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
 
-  // ── Stats ──────────────────────────────────────────────────────────────────
+  // ── Fetch stats + analytics on mount ───────────────────────────────────────
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
-    (async () => {
-      try {
-        const [statsRes, analyticsRes] = await Promise.all([
-          getAdminStats().catch(() => ({ data: {} })),
-          getAnalytics().catch(() => ({ data: {} })),
-        ]);
-        setStats({
-          totalCourses:      statsRes.data?.totalCourses      || 0,
-          totalUsers:        statsRes.data?.totalUsers        || 0,
-          totalInstructors:  statsRes.data?.totalInstructors  || 0,
-          pendingApprovals:  statsRes.data?.pendingApprovals  || 0,
-          totalRevenue:      statsRes.data?.totalRevenue      || 0,
-          activeInstructors: analyticsRes.data?.activeInstructors || 0,
-        });
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
-    })();
+    Promise.all([
+      adminAPI.getStats().catch(() => ({ data: {} })),
+      adminAPI.getAnalytics().catch(() => ({ data: {} })),
+      adminAPI.getNotifications().catch(() => ({ data: [] })),
+    ]).then(([s, a, n]) => {
+      const sd = s.data || {};
+      setStats({
+        totalCourses:    sd.totalCourses    || 0,
+        totalUsers:      sd.totalUsers      || 0,
+        totalEnrollments:sd.totalEnrollments|| 0,
+        pendingApprovals:sd.pendingCourses  || 0,
+        totalRevenue:    sd.totalRevenue    || 0,
+        totalInstructors:(a.data?.topInstructors?.length) || 0,
+      });
+      setAnalytics(a.data || null);
+      setNotifications(Array.isArray(n.data) ? n.data : []);
+    }).finally(() => setLoadingStats(false));
   }, [user]);
 
-  // ── Pending courses ────────────────────────────────────────────────────────
+  // ── Fetch tab content ───────────────────────────────────────────────────────
   useEffect(() => {
-    if (user?.role !== "ADMIN" || activeTab !== "pending") return;
-    setLoadingCourses(true);
-    getPendingCourses()
-      .then((r) => setPendingCourses(Array.isArray(r.data) ? r.data : []))
-      .catch(() => showToast("Failed to load pending courses", "error"))
-      .finally(() => setLoadingCourses(false));
-  }, [user, activeTab]);
-
-  // ── All courses ────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (user?.role !== "ADMIN" || activeTab !== "all") return;
-    setLoadingCourses(true);
-    getAllCourses()
-      .then((r) => setAllCourses(Array.isArray(r.data) ? r.data : []))
-      .catch(() => showToast("Failed to load courses", "error"))
-      .finally(() => setLoadingCourses(false));
-  }, [user, activeTab]);
-
-  // ── Users ──────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (user?.role !== "ADMIN" || activeTab !== "users") return;
-    setLoadingUsers(true);
-    getAllUsers()
-      .then((r) => setUsers(Array.isArray(r.data) ? r.data : []))
-      .catch(() => showToast("Failed to load users", "error"))
-      .finally(() => setLoadingUsers(false));
-  }, [user, activeTab]);
-
-  // ── Payouts ────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (user?.role !== "ADMIN" || activeTab !== "payouts") return;
-    setLoadingPayouts(true);
-    API.get("/wallet/admin/payouts")
-      .then((r) => {
+    if (user?.role !== "ADMIN") return;
+    if (activeTab === "overview") return;
+    setLoadingContent(true);
+    const fetchers = {
+      pending:  () => adminAPI.getPending().then((r)      => setPendingCourses(Array.isArray(r.data) ? r.data : [])),
+      courses:  () => adminAPI.getAllCourses().then((r)    => setAllCourses(Array.isArray(r.data) ? r.data : [])),
+      users:    () => adminAPI.getAllUsers().then((r)      => setUsers(Array.isArray(r.data) ? r.data : [])),
+      payouts:  () => adminAPI.getPayouts().then((r)      => {
         const list = Array.isArray(r.data) ? r.data : (r.data?.payouts || r.data?.requests || []);
         setPayouts(list);
-      })
-      .catch(() => showToast("Failed to load payouts", "error"))
-      .finally(() => setLoadingPayouts(false));
+      }),
+    };
+    (fetchers[activeTab] || (() => Promise.resolve()))()
+      .catch((e) => toast$(e.response?.data?.message || "Failed to load", "error"))
+      .finally(() => setLoadingContent(false));
   }, [user, activeTab]);
 
-  // ── Notifications ──────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (user?.role !== "ADMIN") return;
-    setLoadingNotifs(true);
-    getNotifications()
-      .then((r) => setNotifications(Array.isArray(r.data) ? r.data : []))
-      .catch(console.error)
-      .finally(() => setLoadingNotifs(false));
-  }, [user]);
-
-  // ── Approve course ─────────────────────────────────────────────────────────
-  const handleApproveCourse = async (courseId, courseTitle) => {
-    setApprovingId(courseId);
+  // ── Actions ─────────────────────────────────────────────────────────────────
+  const approveCourse = async (id, title) => {
+    setApprovingId(id);
     try {
-      await reviewCourse(courseId, { status: "PUBLISHED" });
-      setPendingCourses((p) => p.filter((c) => c.id !== courseId));
-      showToast(`"${courseTitle}" approved!`);
-      const statsRes = await getAdminStats().catch(() => ({ data: {} }));
-      setStats((s) => ({ ...s, pendingApprovals: statsRes.data?.pendingApprovals || 0 }));
-    } catch (e) { showToast(e.response?.data?.message || "Failed to approve", "error"); }
+      await adminAPI.reviewCourse(id, { status: "PUBLISHED" });
+      setPendingCourses((p) => p.filter((c) => c.id !== id));
+      setStats((s) => ({ ...s, pendingApprovals: Math.max(0, s.pendingApprovals - 1) }));
+      toast$(`"${title}" approved!`);
+    } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
     finally { setApprovingId(null); }
   };
 
-  // ── Reject course ──────────────────────────────────────────────────────────
-  const handleRejectCourse = async () => {
-    if (!showRejectModal || !rejectReason.trim()) { showToast("Please provide a reason", "error"); return; }
-    setRejectingId(showRejectModal.id);
+  const rejectCourse = async () => {
+    if (!rejectModal || !rejectReason.trim()) { toast$("Please provide a reason", "error"); return; }
+    setRejectingId(rejectModal.id);
     try {
-      await reviewCourse(showRejectModal.id, { status: "REJECTED", rejectionReason: rejectReason });
-      setPendingCourses((p) => p.filter((c) => c.id !== showRejectModal.id));
-      showToast(`"${showRejectModal.title}" rejected.`);
-      setShowRejectModal(null); setRejectReason("");
-    } catch (e) { showToast(e.response?.data?.message || "Failed to reject", "error"); }
+      await adminAPI.reviewCourse(rejectModal.id, { status: "REJECTED", rejectionReason: rejectReason });
+      setPendingCourses((p) => p.filter((c) => c.id !== rejectModal.id));
+      setStats((s) => ({ ...s, pendingApprovals: Math.max(0, s.pendingApprovals - 1) }));
+      toast$(`"${rejectModal.title}" rejected.`);
+      setRejectModal(null); setRejectReason("");
+    } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
     finally { setRejectingId(null); }
   };
 
-  // ── Delete user ────────────────────────────────────────────────────────────
-  const handleDeleteUser = async (userId) => {
+  const deleteUser = async (id) => {
     if (!window.confirm("Delete this user? Cannot be undone.")) return;
-    setDeletingUserId(userId);
+    setDeletingId(id);
     try {
-      await deleteUser(userId);
-      setUsers((u) => u.filter((x) => x.id !== userId));
-      showToast("User deleted.");
-    } catch (e) { showToast(e.response?.data?.message || "Failed", "error"); }
-    finally { setDeletingUserId(null); }
+      await adminAPI.deleteUser(id);
+      setUsers((u) => u.filter((x) => x.id !== id));
+      setStats((s) => ({ ...s, totalUsers: Math.max(0, s.totalUsers - 1) }));
+      toast$("User deleted.");
+    } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
+    finally { setDeletingId(null); }
   };
 
-  // ── Process payout ─────────────────────────────────────────────────────────
-  const handleProcessPayout = async (action) => {
-    if (!showPayoutModal) return;
-    setProcessingPayout(showPayoutModal.id);
+  const processPayout = async (action) => {
+    if (!payoutModal) return;
+    setProcessingPayout(payoutModal.id);
     try {
-      await API.patch(`/wallet/admin/payouts/${showPayoutModal.id}/${action}`, {
-        adminNote: payoutNote,
-      });
-      setPayouts((p) => p.map((x) =>
-        x.id === showPayoutModal.id
-          ? { ...x, status: action === "approve" ? "APPROVED" : "REJECTED" }
-          : x
-      ));
-      showToast(`Payout ${action === "approve" ? "approved" : "rejected"}!`);
-      setShowPayoutModal(null); setPayoutNote("");
-    } catch (e) { showToast(e.response?.data?.message || "Failed", "error"); }
+      if (action === "approve") await adminAPI.approvePayout(payoutModal.id, payoutNote);
+      else                      await adminAPI.rejectPayout(payoutModal.id, payoutNote);
+      setPayouts((p) => p.map((x) => x.id === payoutModal.id ? { ...x, status: action === "approve" ? "APPROVED" : "REJECTED" } : x));
+      toast$(`Payout ${action === "approve" ? "approved" : "rejected"}!`);
+      setPayoutModal(null); setPayoutNote("");
+    } catch (e) { toast$(e.response?.data?.message || "Failed", "error"); }
     finally { setProcessingPayout(null); }
   };
 
-  // ── Filters ────────────────────────────────────────────────────────────────
-  const filteredCourses = (activeTab === "pending" ? pendingCourses : allCourses).filter((c) => {
-    const matchSearch = c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.instructor?.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchStatus = filterStatus === "all" || c.status === filterStatus;
-    return matchSearch && matchStatus;
+  // ── Filters ─────────────────────────────────────────────────────────────────
+  const filteredPending = pendingCourses.filter((c) =>
+    c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    c.instructor?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  const filteredCourses = allCourses.filter((c) => {
+    const ms = c.title?.toLowerCase().includes(searchTerm.toLowerCase()) || c.instructor?.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const mf = filterStatus === "all" || c.status === filterStatus;
+    return ms && mf;
   });
-
   const filteredUsers = users.filter((u) =>
     u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const filteredPayouts = payouts.filter((p) =>
-    filterStatus === "all" || p.status === filterStatus
-  );
-
-  const pendingPayoutsCount = payouts.filter((p) => p.status === "PENDING").length;
+  const filteredPayouts  = payouts.filter((p) => filterStatus === "all" || p.status === filterStatus);
+  const pendingPayoutCount = payouts.filter((p) => p.status === "PENDING").length;
 
   if (user?.role !== "ADMIN") return (
     <Layout hideFloatingBar>
@@ -217,27 +176,28 @@ const AdminDashboard = () => {
   );
 
   const tabs = [
-    { id: "pending",  label: "Pending Approvals", icon: Clock,    badge: stats.pendingApprovals },
-    { id: "all",      label: "All Courses",        icon: BookOpen, badge: null },
-    { id: "users",    label: "Users",              icon: Users,    badge: null },
-    { id: "payouts",  label: "Payouts",            icon: Banknote, badge: pendingPayoutsCount || null },
+    { id: "overview", label: "Overview",          icon: BarChart3  },
+    { id: "pending",  label: "Pending Approvals", icon: Clock,     badge: stats.pendingApprovals },
+    { id: "courses",  label: "All Courses",       icon: BookOpen                                 },
+    { id: "users",    label: "Users",             icon: Users                                    },
+    { id: "payouts",  label: "Payouts",           icon: Banknote,  badge: pendingPayoutCount     },
   ];
 
   return (
     <Layout hideFloatingBar>
       {toast && (
-        <div className={`fixed top-6 right-6 z-[999] px-6 py-4 rounded-xl text-white font-bold shadow-2xl text-sm ${
-          toast.type === "error" ? "bg-red-500" : "bg-emerald-500"
-        }`}>{toast.msg}</div>
+        <div className={`fixed top-6 right-6 z-[999] px-6 py-4 rounded-xl text-white font-bold shadow-2xl text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
+          {toast.msg}
+        </div>
       )}
 
       <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/30 pt-20">
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white px-4 py-16 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white px-4 py-14 relative overflow-hidden">
           <div className="absolute top-0 right-0 w-96 h-96 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="max-w-7xl mx-auto relative">
-            <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-3 mb-2">
               <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center border border-red-500/30">
                 <ShieldCheck size={24} className="text-red-300" />
               </div>
@@ -247,29 +207,35 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 space-y-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
-          {/* Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-            {[
-              { label: "Total Courses",      value: stats.totalCourses,                                      icon: BookOpen,   color: "bg-blue-50 text-blue-600 border-blue-100"     },
-              { label: "Total Users",        value: stats.totalUsers,                                        icon: Users,      color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-              { label: "Instructors",        value: stats.totalInstructors,                                  icon: Award,      color: "bg-purple-50 text-purple-600 border-purple-100" },
-              { label: "Active Instructors", value: stats.activeInstructors,                                 icon: Activity,   color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-              { label: "Pending Reviews",    value: stats.pendingApprovals,                                  icon: Clock,      color: "bg-amber-50 text-amber-600 border-amber-100"   },
-              { label: "Total Revenue",      value: `$${(stats.totalRevenue || 0).toLocaleString()}`,        icon: DollarSign, color: "bg-green-50 text-green-600 border-green-100"   },
-            ].map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className={`${color} border rounded-2xl p-5 shadow-sm hover:shadow-md transition`}>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
-                    <p className="text-2xl font-black mt-2">{value}</p>
+          {/* Stats row */}
+          {loadingStats ? (
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+              {Array.from({length:6}).map((_,i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+              {[
+                { label: "Total Courses",   value: stats.totalCourses,                               icon: BookOpen,   color: "bg-blue-50 text-blue-600 border-blue-100"      },
+                { label: "Total Users",     value: stats.totalUsers,                                 icon: Users,      color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+                { label: "Enrollments",     value: stats.totalEnrollments,                           icon: Award,      color: "bg-purple-50 text-purple-600 border-purple-100" },
+                { label: "Instructors",     value: stats.totalInstructors,                           icon: Activity,   color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
+                { label: "Pending Reviews", value: stats.pendingApprovals,                           icon: Clock,      color: "bg-amber-50 text-amber-600 border-amber-100"    },
+                { label: "Total Revenue",   value: `$${(stats.totalRevenue||0).toLocaleString()}`,   icon: DollarSign, color: "bg-green-50 text-green-600 border-green-100"    },
+              ].map(({ label, value, icon: Icon, color }) => (
+                <div key={label} className={`${color} border rounded-2xl p-5 shadow-sm hover:shadow-md transition`}>
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wider text-slate-500">{label}</p>
+                      <p className="text-2xl font-black mt-2">{value}</p>
+                    </div>
+                    <Icon size={22} className="opacity-40" />
                   </div>
-                  <Icon size={24} className="opacity-50" />
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-1 border-b border-slate-200 overflow-x-auto">
@@ -278,60 +244,130 @@ const AdminDashboard = () => {
                 className={`pb-3 px-4 font-bold text-sm flex items-center gap-2 border-b-2 transition whitespace-nowrap ${
                   activeTab === id ? "border-blue-600 text-blue-600" : "border-transparent text-slate-600 hover:text-slate-900"
                 }`}>
-                <Icon size={16} /> {label}
-                {badge > 0 && (
-                  <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{badge}</span>
-                )}
+                <Icon size={15} /> {label}
+                {badge > 0 && <span className="bg-red-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full">{badge}</span>}
               </button>
             ))}
           </div>
 
-          {/* ── Pending Courses ─────────────────────────────────────────────── */}
+          {/* ── Overview ───────────────────────────────────────────────────── */}
+          {activeTab === "overview" && (
+            <div className="space-y-6">
+              {/* Top courses */}
+              {analytics?.topCourses?.length > 0 && (
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+                  <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
+                    <TrendingUp size={18} className="text-blue-500" /> Top Performing Courses
+                  </h2>
+                  <div className="space-y-3">
+                    {analytics.topCourses.map((c, i) => (
+                      <div key={c.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
+                        <span className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-black text-sm flex items-center justify-center shrink-0">{i+1}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-800 text-sm truncate">{c.title}</p>
+                          <p className="text-xs text-slate-400">{c.instructor} · {c.enrollments} students</p>
+                        </div>
+                        <span className="font-black text-emerald-600 text-sm shrink-0">${(c.revenue||0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Top instructors */}
+              {analytics?.topInstructors?.length > 0 && (
+                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+                  <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
+                    <Award size={18} className="text-amber-500" /> Top Instructors
+                  </h2>
+                  <div className="space-y-3">
+                    {analytics.topInstructors.map((inst, i) => (
+                      <div key={inst.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
+                          {inst.avatarUrl ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" /> : inst.fullName?.[0]}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-slate-800 text-sm">{inst.fullName}</p>
+                          <p className="text-xs text-slate-400">{inst.courseCount} courses · {inst.totalStudents} students</p>
+                        </div>
+                        <span className="font-black text-emerald-600 text-sm shrink-0">${(inst.totalRevenue||0).toLocaleString()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Recent notifications */}
+              <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
+                <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
+                  <Bell size={18} className="text-blue-500" /> Recent Activity
+                </h2>
+                {notifications.length === 0 ? (
+                  <p className="text-slate-400 text-center py-8">No notifications yet</p>
+                ) : (
+                  <div className="space-y-3 max-h-80 overflow-y-auto">
+                    {notifications.slice(0,10).map((n) => (
+                      <div key={n.id} className={`p-4 rounded-xl border transition ${n.isRead ? "bg-slate-50 border-slate-100" : "bg-blue-50 border-blue-100"}`}>
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-semibold text-slate-900 text-sm">{n.title}</p>
+                            <p className="text-xs text-slate-600 mt-0.5">{n.message}</p>
+                            <p className="text-[10px] text-slate-400 mt-1">{new Date(n.createdAt).toLocaleString()}</p>
+                          </div>
+                          {!n.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0 mt-1" />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── Pending Approvals ───────────────────────────────────────────── */}
           {activeTab === "pending" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-black text-slate-900">Pending Course Approvals</h2>
+                <h2 className="text-2xl font-black text-slate-900">Pending Approvals</h2>
                 <span className="text-3xl font-black text-amber-600">{stats.pendingApprovals}</span>
               </div>
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by title or instructor..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-amber-500 transition" />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by title or instructor..."
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-amber-500 transition text-sm" />
               </div>
-              {loadingCourses ? (
-                <div className="flex justify-center py-12"><Loader2 size={40} className="animate-spin text-amber-500" /></div>
-              ) : filteredCourses.length === 0 ? (
+              {loadingContent ? (
+                <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-amber-500" /></div>
+              ) : filteredPending.length === 0 ? (
                 <div className="text-center py-12">
-                  <CheckCircle size={48} className="text-emerald-300 mx-auto mb-4" />
+                  <CheckCircle size={48} className="text-emerald-300 mx-auto mb-3" />
                   <p className="text-slate-600 font-semibold">{searchTerm ? "No matches" : "All caught up! No pending courses"}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {filteredCourses.map((course) => (
-                    <div key={course.id} className="bg-slate-50 rounded-2xl border border-slate-100 p-6 flex gap-6 items-start hover:shadow-md transition">
+                  {filteredPending.map((course) => (
+                    <div key={course.id} className="bg-slate-50 rounded-2xl border border-slate-100 p-6 flex gap-5 items-start hover:shadow-md transition">
                       <img src={course.thumbnail || "https://images.unsplash.com/photo-1516979187457-635ffe35ff15?auto=format&fit=crop&w=200&q=80"}
-                        alt={course.title} className="w-24 h-24 rounded-xl object-cover shrink-0" />
+                        alt={course.title} className="w-20 h-20 rounded-xl object-cover shrink-0" />
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-black text-slate-900 text-lg mb-1 line-clamp-2">{course.title}</h3>
-                        <p className="text-sm text-slate-600 mb-2">by {course.instructor?.fullName}</p>
+                        <h3 className="font-black text-slate-900 mb-1 line-clamp-1">{course.title}</h3>
+                        <p className="text-sm text-slate-500 mb-2">by {course.instructor?.fullName}</p>
                         <p className="text-sm text-slate-500 line-clamp-2 mb-3">{course.description}</p>
-                        <div className="flex flex-wrap gap-2">
-                          {course.category && <span className="text-xs bg-blue-50 text-blue-700 px-3 py-1 rounded-full font-semibold">{course.category.name}</span>}
-                          {course.price > 0 && <span className="text-xs bg-green-50 text-green-700 px-3 py-1 rounded-full font-semibold">${course.price}</span>}
-                          <span className="text-xs bg-amber-50 text-amber-700 px-3 py-1 rounded-full font-semibold">⏳ Pending</span>
+                        <div className="flex gap-2 flex-wrap">
+                          {course.category && <span className="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full font-semibold">{course.category.name}</span>}
+                          {course.price > 0 && <span className="text-xs bg-green-50 text-green-700 px-2.5 py-1 rounded-full font-semibold">${course.price}</span>}
                         </div>
                       </div>
                       <div className="flex flex-col gap-2 shrink-0">
-                        <button onClick={() => handleApproveCourse(course.id, course.title)} disabled={approvingId === course.id}
+                        <button onClick={() => approveCourse(course.id, course.title)} disabled={approvingId === course.id}
                           className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition">
-                          {approvingId === course.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />}
-                          {approvingId === course.id ? "Approving..." : "Approve"}
+                          {approvingId === course.id ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                          {approvingId === course.id ? "..." : "Approve"}
                         </button>
-                        <button onClick={() => setShowRejectModal(course)} disabled={rejectingId === course.id}
+                        <button onClick={() => { setRejectModal(course); setRejectReason(""); }} disabled={rejectingId === course.id}
                           className="flex items-center gap-1.5 px-4 py-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-lg font-bold text-sm transition">
-                          {rejectingId === course.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />}
-                          {rejectingId === course.id ? "Rejecting..." : "Reject"}
+                          {rejectingId === course.id ? <Loader2 size={13} className="animate-spin" /> : <X size={13} />}
+                          {rejectingId === course.id ? "..." : "Reject"}
                         </button>
                       </div>
                     </div>
@@ -342,17 +378,17 @@ const AdminDashboard = () => {
           )}
 
           {/* ── All Courses ─────────────────────────────────────────────────── */}
-          {activeTab === "all" && (
+          {activeTab === "courses" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <h2 className="text-2xl font-black text-slate-900">All Courses</h2>
-              <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex flex-col sm:flex-row gap-3">
                 <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                   <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search courses..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-blue-500 transition" />
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" />
                 </div>
                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
-                  className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700">
+                  className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-700 text-sm">
                   <option value="all">All Status</option>
                   <option value="DRAFT">Draft</option>
                   <option value="PENDING_REVIEW">Pending</option>
@@ -360,32 +396,32 @@ const AdminDashboard = () => {
                   <option value="REJECTED">Rejected</option>
                 </select>
               </div>
-              {loadingCourses ? (
-                <div className="flex justify-center py-12"><Loader2 size={40} className="animate-spin text-blue-500" /></div>
+              {loadingContent ? (
+                <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-blue-500" /></div>
               ) : filteredCourses.length === 0 ? (
-                <div className="text-center py-12"><BookOpen size={48} className="text-slate-300 mx-auto mb-4" /><p className="text-slate-600 font-semibold">No courses found</p></div>
+                <div className="text-center py-12"><BookOpen size={48} className="text-slate-300 mx-auto mb-3" /><p className="text-slate-600 font-semibold">No courses found</p></div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full text-sm">
                     <thead><tr className="border-b border-slate-200">
-                      {["Title", "Instructor", "Status", "Price", "Students"].map((h) => (
-                        <th key={h} className="text-left py-3 px-4 font-bold text-slate-700 text-sm">{h}</th>
+                      {["Title","Instructor","Status","Price","Students"].map((h) => (
+                        <th key={h} className="text-left py-3 px-4 font-bold text-slate-600">{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
-                      {filteredCourses.map((course) => (
-                        <tr key={course.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                          <td className="py-4 px-4 font-semibold text-slate-900 text-sm max-w-xs truncate">{course.title}</td>
-                          <td className="py-4 px-4 text-slate-600 text-sm">{course.instructor?.fullName}</td>
-                          <td className="py-4 px-4 text-sm">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              course.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" :
-                              course.status === "PENDING_REVIEW" ? "bg-amber-100 text-amber-700" :
-                              course.status === "DRAFT" ? "bg-slate-100 text-slate-700" : "bg-red-100 text-red-700"
-                            }`}>{course.status}</span>
+                      {filteredCourses.map((c) => (
+                        <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
+                          <td className="py-3.5 px-4 font-semibold text-slate-900 max-w-xs truncate">{c.title}</td>
+                          <td className="py-3.5 px-4 text-slate-500">{c.instructor?.fullName}</td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              c.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" :
+                              c.status === "PENDING_REVIEW" ? "bg-amber-100 text-amber-700" :
+                              c.status === "DRAFT" ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"
+                            }`}>{c.status}</span>
                           </td>
-                          <td className="py-4 px-4 text-slate-600 text-sm font-semibold">{course.price ? `$${course.price}` : "Free"}</td>
-                          <td className="py-4 px-4 text-slate-600 text-sm">{course._count?.enrollments || 0}</td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-700">{c.price ? `$${c.price}` : "Free"}</td>
+                          <td className="py-3.5 px-4 text-slate-500">{c._count?.enrollments || 0}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -398,44 +434,43 @@ const AdminDashboard = () => {
           {/* ── Users ───────────────────────────────────────────────────────── */}
           {activeTab === "users" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-              <h2 className="text-2xl font-black text-slate-900">All Users</h2>
+              <h2 className="text-2xl font-black text-slate-900">All Users <span className="text-slate-400 font-normal text-lg">({filteredUsers.length})</span></h2>
               <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                 <input value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Search by name or email..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-12 pr-4 outline-none focus:ring-2 focus:ring-emerald-500 transition" />
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 outline-none focus:ring-2 focus:ring-emerald-500 transition text-sm" />
               </div>
-              {loadingUsers ? (
-                <div className="flex justify-center py-12"><Loader2 size={40} className="animate-spin text-emerald-500" /></div>
+              {loadingContent ? (
+                <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-emerald-500" /></div>
               ) : filteredUsers.length === 0 ? (
-                <div className="text-center py-12"><Users size={48} className="text-slate-300 mx-auto mb-4" /><p className="text-slate-600 font-semibold">No users found</p></div>
+                <div className="text-center py-12"><Users size={48} className="text-slate-300 mx-auto mb-3" /><p className="text-slate-600 font-semibold">No users found</p></div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full">
+                  <table className="w-full text-sm">
                     <thead><tr className="border-b border-slate-200">
-                      {["Name", "Email", "Role", "Status", "Enrolled", "Actions"].map((h) => (
-                        <th key={h} className="text-left py-3 px-4 font-bold text-slate-700 text-sm">{h}</th>
+                      {["Name","Email","Role","Status","Enrolled","Action"].map((h) => (
+                        <th key={h} className="text-left py-3 px-4 font-bold text-slate-600">{h}</th>
                       ))}
                     </tr></thead>
                     <tbody>
                       {filteredUsers.map((u) => (
-                        <tr key={u.id} className="border-b border-slate-100 hover:bg-slate-50 transition">
-                          <td className="py-4 px-4 font-semibold text-slate-900 text-sm">{u.fullName}</td>
-                          <td className="py-4 px-4 text-slate-600 text-sm">{u.email}</td>
-                          <td className="py-4 px-4 text-sm">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        <tr key={u.id} className="border-b border-slate-50 hover:bg-slate-50 transition">
+                          <td className="py-3.5 px-4 font-semibold text-slate-900">{u.fullName}</td>
+                          <td className="py-3.5 px-4 text-slate-500">{u.email}</td>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
                               u.role === "ADMIN" ? "bg-red-100 text-red-700" :
                               u.role === "INSTRUCTOR" ? "bg-blue-100 text-blue-700" : "bg-emerald-100 text-emerald-700"
                             }`}>{u.role}</span>
                           </td>
-                          <td className="py-4 px-4 text-sm">
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${u.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{u.status}</span>
+                          <td className="py-3.5 px-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${u.status === "ACTIVE" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>{u.status}</span>
                           </td>
-                          <td className="py-4 px-4 text-slate-600 text-sm">{u._count?.enrollments || 0}</td>
-                          <td className="py-4 px-4 text-sm">
-                            <button onClick={() => handleDeleteUser(u.id)} disabled={deletingUserId === u.id}
-                              className="text-red-600 hover:text-red-700 font-bold disabled:opacity-50 flex items-center gap-1">
-                              {deletingUserId === u.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
-                              Delete
+                          <td className="py-3.5 px-4 text-slate-500">{u._count?.enrollments || 0}</td>
+                          <td className="py-3.5 px-4">
+                            <button onClick={() => deleteUser(u.id)} disabled={deletingId === u.id}
+                              className="text-red-500 hover:text-red-700 font-bold disabled:opacity-40 flex items-center gap-1">
+                              {deletingId === u.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />} Delete
                             </button>
                           </td>
                         </tr>
@@ -452,65 +487,46 @@ const AdminDashboard = () => {
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-black text-slate-900">Payout Requests</h2>
-                {pendingPayoutsCount > 0 && (
-                  <span className="bg-amber-100 text-amber-700 text-sm font-black px-3 py-1.5 rounded-full">
-                    {pendingPayoutsCount} pending
-                  </span>
-                )}
+                {pendingPayoutCount > 0 && <span className="bg-amber-100 text-amber-700 text-sm font-black px-3 py-1.5 rounded-full">{pendingPayoutCount} pending</span>}
               </div>
-              <div className="flex gap-3">
-                {["all", "PENDING", "APPROVED", "REJECTED", "PAID"].map((s) => (
+              <div className="flex gap-2 flex-wrap">
+                {["all","PENDING","APPROVED","REJECTED","PAID"].map((s) => (
                   <button key={s} onClick={() => setFilterStatus(s)}
-                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
-                      filterStatus === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                    }`}>
+                    className={`px-4 py-2 rounded-xl text-sm font-bold transition ${filterStatus === s ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
                     {s === "all" ? "All" : s}
                   </button>
                 ))}
               </div>
-              {loadingPayouts ? (
-                <div className="flex justify-center py-12"><Loader2 size={40} className="animate-spin text-blue-500" /></div>
+              {loadingContent ? (
+                <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-blue-500" /></div>
               ) : filteredPayouts.length === 0 ? (
-                <div className="text-center py-12">
-                  <Banknote size={48} className="text-slate-300 mx-auto mb-4" />
-                  <p className="text-slate-600 font-semibold">No payout requests</p>
-                </div>
+                <div className="text-center py-12"><Banknote size={48} className="text-slate-300 mx-auto mb-3" /><p className="text-slate-600 font-semibold">No payout requests</p></div>
               ) : (
-                <div className="space-y-4">
-                  {filteredPayouts.map((payout) => (
-                    <div key={payout.id} className="border border-slate-100 rounded-2xl p-5 hover:shadow-md transition">
+                <div className="space-y-3">
+                  {filteredPayouts.map((p) => (
+                    <div key={p.id} className="border border-slate-100 rounded-2xl p-5 hover:shadow-md transition">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-3 mb-2 flex-wrap">
-                            <p className="font-black text-slate-900 text-lg">${payout.amount?.toFixed(2)}</p>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              payout.status === "PENDING"  ? "bg-amber-100 text-amber-700"   :
-                              payout.status === "APPROVED" ? "bg-blue-100 text-blue-700"     :
-                              payout.status === "PAID"     ? "bg-emerald-100 text-emerald-700" :
-                                                             "bg-red-100 text-red-700"
-                            }`}>{payout.status}</span>
+                          <div className="flex items-center gap-3 mb-1 flex-wrap">
+                            <p className="font-black text-slate-900 text-lg">${p.amount?.toFixed(2)}</p>
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                              p.status === "PENDING" ? "bg-amber-100 text-amber-700" :
+                              p.status === "APPROVED" ? "bg-blue-100 text-blue-700" :
+                              p.status === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                            }`}>{p.status}</span>
                           </div>
-                          <p className="text-sm text-slate-600 font-semibold">{payout.instructor?.fullName}</p>
+                          <p className="text-sm font-semibold text-slate-700">{p.instructor?.fullName}</p>
                           <p className="text-xs text-slate-400 mt-1">
-                            {payout.payoutMethod === "bank_transfer" ? "🏦 Bank Transfer" : "💳 PayPal"} ·
-                            {payout.bankName && ` ${payout.bankName} ·`}
-                            {payout.accountNumber && ` ****${payout.accountNumber.slice(-4)}`}
-                            {payout.paypalEmail && ` ${payout.paypalEmail}`}
+                            {p.payoutMethod === "bank_transfer" ? "🏦" : "💳"} {p.bankName && `${p.bankName} · `}{p.accountNumber && `****${p.accountNumber.slice(-4)}`}{p.paypalEmail}
                           </p>
-                          <p className="text-xs text-slate-400 mt-1">
-                            Requested {new Date(payout.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
-                          </p>
-                          {payout.adminNote && (
-                            <p className="text-xs text-slate-500 mt-2 italic">Note: {payout.adminNote}</p>
-                          )}
+                          <p className="text-xs text-slate-400">{new Date(p.createdAt).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</p>
+                          {p.adminNote && <p className="text-xs text-slate-500 italic mt-1">"{p.adminNote}"</p>}
                         </div>
-                        {payout.status === "PENDING" && (
-                          <div className="flex gap-2 shrink-0">
-                            <button onClick={() => { setShowPayoutModal(payout); setPayoutNote(""); }}
-                              className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition">
-                              <CheckCircle size={14} /> Review
-                            </button>
-                          </div>
+                        {p.status === "PENDING" && (
+                          <button onClick={() => { setPayoutModal(p); setPayoutNote(""); }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition shrink-0">
+                            <CheckCircle size={13} /> Review
+                          </button>
                         )}
                       </div>
                     </div>
@@ -519,64 +535,30 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
-
-          {/* Notifications */}
-          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
-                <Bell size={20} className="text-blue-600" />
-              </div>
-              <h2 className="text-2xl font-black text-slate-900">Recent Notifications</h2>
-            </div>
-            {loadingNotifs ? (
-              <div className="flex justify-center py-8"><Loader2 size={32} className="animate-spin text-blue-500" /></div>
-            ) : notifications.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">No notifications yet</p>
-            ) : (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {notifications.slice(0, 10).map((notif) => (
-                  <div key={notif.id} onClick={() => !notif.isRead && markNotificationAsRead(notif.id)}
-                    className={`p-4 rounded-xl border cursor-pointer hover:shadow-md transition ${notif.isRead ? "bg-slate-50 border-slate-100" : "bg-blue-50 border-blue-100"}`}>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold text-slate-900">{notif.title}</p>
-                        <p className="text-sm text-slate-600 mt-1">{notif.message}</p>
-                        <p className="text-xs text-slate-500 mt-2">{new Date(notif.createdAt).toLocaleString()}</p>
-                      </div>
-                      {!notif.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full shrink-0 mt-1" />}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
 
       {/* Reject Course Modal */}
-      {showRejectModal && (
+      {rejectModal && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-black text-slate-900">Reject Course</h3>
-              <button onClick={() => setShowRejectModal(null)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+              <h3 className="text-xl font-black text-slate-900">Reject Course</h3>
+              <button onClick={() => setRejectModal(null)} className="text-slate-400 hover:text-slate-600"><X size={22} /></button>
             </div>
-            <div>
-              <p className="font-semibold text-slate-700">{showRejectModal.title}</p>
-              <p className="text-sm text-slate-500">by {showRejectModal.instructor?.fullName}</p>
-            </div>
+            <div><p className="font-semibold text-slate-700">{rejectModal.title}</p><p className="text-sm text-slate-400">by {rejectModal.instructor?.fullName}</p></div>
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">Rejection Reason *</label>
               <textarea value={rejectReason} onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Why are you rejecting this course? This will be sent to the instructor..."
-                rows={4} className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 transition resize-none" />
+                placeholder="Why are you rejecting this course? The instructor will be notified..."
+                rows={4} className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 transition resize-none text-sm" />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => setShowRejectModal(null)} className="flex-1 border border-slate-200 rounded-xl py-3 text-slate-700 font-bold hover:bg-slate-50 transition">Cancel</button>
-              <button onClick={handleRejectCourse} disabled={rejectingId === showRejectModal.id}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2">
-                {rejectingId === showRejectModal.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
-                {rejectingId === showRejectModal.id ? "Rejecting..." : "Reject Course"}
+              <button onClick={() => setRejectModal(null)} className="flex-1 border border-slate-200 rounded-xl py-3 text-slate-700 font-bold hover:bg-slate-50 transition text-sm">Cancel</button>
+              <button onClick={rejectCourse} disabled={rejectingId === rejectModal.id}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
+                {rejectingId === rejectModal.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
+                {rejectingId === rejectModal.id ? "Rejecting..." : "Reject Course"}
               </button>
             </div>
           </div>
@@ -584,61 +566,42 @@ const AdminDashboard = () => {
       )}
 
       {/* Payout Review Modal */}
-      {showPayoutModal && (
+      {payoutModal && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-6">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-8 space-y-5">
             <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-black text-slate-900">Review Payout</h3>
-              <button onClick={() => setShowPayoutModal(null)} className="text-slate-400 hover:text-slate-600"><X size={24} /></button>
+              <h3 className="text-xl font-black text-slate-900">Review Payout</h3>
+              <button onClick={() => setPayoutModal(null)} className="text-slate-400 hover:text-slate-600"><X size={22} /></button>
             </div>
-            <div className="bg-slate-50 rounded-2xl p-4 space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-500">Instructor</span>
-                <span className="font-bold text-slate-800 text-sm">{showPayoutModal.instructor?.fullName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-500">Amount</span>
-                <span className="font-black text-emerald-600 text-lg">${showPayoutModal.amount?.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-slate-500">Method</span>
-                <span className="font-bold text-slate-800 text-sm">{showPayoutModal.payoutMethod}</span>
-              </div>
-              {showPayoutModal.bankName && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-500">Bank</span>
-                  <span className="font-bold text-slate-800 text-sm">{showPayoutModal.bankName}</span>
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5 text-sm">
+              {[
+                ["Instructor",  payoutModal.instructor?.fullName],
+                ["Amount",      `$${payoutModal.amount?.toFixed(2)}`],
+                ["Method",      payoutModal.payoutMethod?.replace("_"," ")],
+                payoutModal.bankName     && ["Bank",        payoutModal.bankName],
+                payoutModal.accountName  && ["Account Name",payoutModal.accountName],
+                payoutModal.accountNumber && ["Account No.", payoutModal.accountNumber],
+                payoutModal.paypalEmail  && ["PayPal",      payoutModal.paypalEmail],
+              ].filter(Boolean).map(([label, val]) => (
+                <div key={label} className="flex justify-between">
+                  <span className="text-slate-500">{label}</span>
+                  <span className="font-bold text-slate-800">{val}</span>
                 </div>
-              )}
-              {showPayoutModal.accountNumber && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-500">Account</span>
-                  <span className="font-bold text-slate-800 text-sm">{showPayoutModal.accountNumber}</span>
-                </div>
-              )}
-              {showPayoutModal.accountName && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-slate-500">Name</span>
-                  <span className="font-bold text-slate-800 text-sm">{showPayoutModal.accountName}</span>
-                </div>
-              )}
+              ))}
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-2">Admin Note (optional)</label>
-              <input value={payoutNote} onChange={(e) => setPayoutNote(e.target.value)}
-                placeholder="e.g. Payment sent via bank transfer"
+              <label className="block text-sm font-bold text-slate-700 mb-1.5">Admin Note (optional)</label>
+              <input value={payoutNote} onChange={(e) => setPayoutNote(e.target.value)} placeholder="e.g. Sent via bank transfer on Mar 17"
                 className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500 transition text-sm" />
             </div>
             <div className="flex gap-3">
-              <button onClick={() => handleProcessPayout("reject")} disabled={processingPayout === showPayoutModal.id}
-                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2">
-                {processingPayout === showPayoutModal.id ? <Loader2 size={16} className="animate-spin" /> : <X size={16} />}
-                Reject
+              <button onClick={() => processPayout("reject")} disabled={processingPayout === payoutModal.id}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
+                {processingPayout === payoutModal.id ? <Loader2 size={14} className="animate-spin" /> : <X size={14} />} Reject
               </button>
-              <button onClick={() => handleProcessPayout("approve")} disabled={processingPayout === showPayoutModal.id}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2">
-                {processingPayout === showPayoutModal.id ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle size={16} />}
-                Approve & Mark Paid
+              <button onClick={() => processPayout("approve")} disabled={processingPayout === payoutModal.id}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
+                {processingPayout === payoutModal.id ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle size={14} />} Approve & Paid
               </button>
             </div>
           </div>
