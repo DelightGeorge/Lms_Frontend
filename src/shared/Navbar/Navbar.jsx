@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Search, ShoppingCart, Bell, ChevronDown, Menu, X,
+  Search, Bell, ChevronDown, Menu, X,
   LogOut, User, LayoutDashboard, BookOpen,
   GraduationCap, ShieldCheck, Home, TrendingUp,
   Flame, Zap, Star, Users, ArrowRight, Loader2,
 } from "lucide-react";
-import { NavLink, Link, useNavigate, useLocation,  } from "react-router-dom";
+import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
 
@@ -18,7 +18,6 @@ const Navbar = () => {
   const [isScrolled,  setIsScrolled]  = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [cartCount,   setCartCount]   = useState(0);
   const [notifCount,  setNotifCount]  = useState(0);
   const [searchQuery,     setSearchQuery]     = useState("");
   const [placeholderIdx,  setPlaceholderIdx]  = useState(0);
@@ -34,8 +33,8 @@ const Navbar = () => {
   const [searchResults, setSearchResults] = useState({ courses: [], instructors: [] });
   const [searchLoading, setSearchLoading] = useState(false);
   const [showDropdown,  setShowDropdown]  = useState(false);
-  const [searchFocused,  setSearchFocused]  = useState(false);
-  const searchRef = useRef(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef      = useRef(null);
   const mobileSearchRef = useRef(null);
   const searchTimerRef = useRef(null);
 
@@ -88,21 +87,12 @@ const Navbar = () => {
     return () => clearInterval(id);
   }, [searchQuery]);
 
-  // ── Cart count (students only, re-fetch on route change) ──
-  useEffect(() => {
-    if (!user || user.role !== "STUDENT") { setCartCount(0); return; }
-    API.get("/cart")
-      .then((r) => setCartCount(r.data?.items?.length || 0))
-      .catch(() => setCartCount(0));
-  }, [user, location.pathname]);
-
-  // ── Unread count — uses efficient /unread endpoint ────────
+  // ── Unread count ──────────────────────────────────────────
   useEffect(() => {
     if (!user) { setNotifCount(0); return; }
     API.get("/notifications/unread")
       .then((r) => setNotifCount(r.data?.count || 0))
       .catch(() => {
-        // fallback: fetch all and count manually
         API.get("/notifications")
           .then((r) => {
             const arr = Array.isArray(r.data) ? r.data : [];
@@ -195,25 +185,6 @@ const Navbar = () => {
     );
   };
 
-  // ── Cart icon ─────────────────────────────────────────────
-  const CartIcon = ({ mobile = false }) => (
-    <Link to="/cart"
-      className={`relative flex items-center gap-2 transition
-        ${mobile
-          ? "py-3 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          : "p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-blue-600"
-        }`}>
-      <ShoppingCart size={mobile ? 17 : 19} />
-      {cartCount > 0 && (
-        <span className={`bg-blue-600 text-white text-[9px] font-black rounded-full flex items-center justify-center
-          ${mobile ? "w-4 h-4" : "absolute -top-0.5 -right-0.5 w-4 h-4"}`}>
-          {cartCount > 9 ? "9+" : cartCount}
-        </span>
-      )}
-      {mobile && <span>Cart {cartCount > 0 && <span className="text-blue-600">({cartCount})</span>}</span>}
-    </Link>
-  );
-
   // ── Notif icon ────────────────────────────────────────────
   const NotifIcon = ({ mobile = false }) => (
     <Link to="/notifications"
@@ -294,7 +265,7 @@ const Navbar = () => {
                   onFocus={() => { setSearchFocused(true); searchQuery.trim() && setShowDropdown(true); }}
                   onBlur={() => setTimeout(() => { setSearchFocused(false); setShowDropdown(false); }, 300)}
                   placeholder={placeholders[placeholderIdx]}
-                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all" 
+                  className="w-full bg-slate-100 hover:bg-slate-200/70 focus:bg-white focus:ring-2 focus:ring-blue-500 rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all"
                 />
                 {searchQuery && (
                   <button type="button" onClick={clearSearch}
@@ -304,7 +275,7 @@ const Navbar = () => {
                 )}
               </form>
 
-              {/* Hint pill — shown when input is empty and focused */}
+              {/* Hint pill */}
               {!searchQuery && !showDropdown && searchFocused && (
                 <div className="absolute top-full left-0 mt-2 z-[999]">
                   <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-lg rounded-2xl px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
@@ -331,7 +302,6 @@ const Navbar = () => {
                     </div>
                   ) : (
                     <>
-                      {/* ── Courses section ── */}
                       {searchResults.courses.length > 0 && (
                         <div>
                           <div className="flex items-center gap-2 px-4 pt-3 pb-1">
@@ -343,7 +313,6 @@ const Navbar = () => {
                             <Link key={course.id} to={`/courses/${course.id}`}
                               onClick={clearSearch}
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl">
-                              {/* Thumbnail */}
                               <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-sm">
                                 {course.thumbnail
                                   ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
@@ -351,16 +320,13 @@ const Navbar = () => {
                                       <BookOpen size={14} className="text-slate-400" />
                                     </div>}
                               </div>
-                              {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700 transition-colors leading-tight">
                                   {course.title}
                                 </p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                   {course.instructor?.fullName && (
-                                    <span className="text-[10px] text-slate-400 truncate">
-                                      {course.instructor.fullName}
-                                    </span>
+                                    <span className="text-[10px] text-slate-400 truncate">{course.instructor.fullName}</span>
                                   )}
                                   {course._count?.enrollments > 0 && (
                                     <span className="text-[10px] text-slate-300 flex items-center gap-0.5 shrink-0">
@@ -369,11 +335,8 @@ const Navbar = () => {
                                   )}
                                 </div>
                               </div>
-                              {/* Price badge */}
                               <span className={`text-[11px] font-black shrink-0 px-2 py-0.5 rounded-lg ${
-                                course.price === 0
-                                  ? "bg-emerald-50 text-emerald-600"
-                                  : "bg-slate-100 text-slate-700"
+                                course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-700"
                               }`}>
                                 {course.price === 0 ? "Free" : `$${course.price}`}
                               </span>
@@ -382,7 +345,6 @@ const Navbar = () => {
                         </div>
                       )}
 
-                      {/* ── Instructors section ── */}
                       {searchResults.instructors.length > 0 && (
                         <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
                           <div className="flex items-center gap-2 px-4 pt-2 pb-1">
@@ -394,13 +356,11 @@ const Navbar = () => {
                             <Link key={inst.id} to={`/instructors/${inst.id}`}
                               onClick={clearSearch}
                               className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
-                              {/* Avatar */}
                               <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm ring-2 ring-white shadow-sm">
                                 {inst.avatarUrl
                                   ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
                                   : inst.fullName?.[0]}
                               </div>
-                              {/* Info */}
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors leading-tight">
                                   {inst.fullName}
@@ -416,7 +376,6 @@ const Navbar = () => {
                                   )}
                                 </div>
                               </div>
-                              {/* View profile badge */}
                               <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-indigo-100 transition">
                                 View
                               </span>
@@ -425,7 +384,6 @@ const Navbar = () => {
                         </div>
                       )}
 
-                      {/* ── No results ── */}
                       {searchResults.courses.length === 0 && searchResults.instructors.length === 0 && (
                         <div className="text-center py-10">
                           <Search size={24} className="text-slate-200 mx-auto mb-2" />
@@ -434,7 +392,6 @@ const Navbar = () => {
                         </div>
                       )}
 
-                      {/* ── Footer ── */}
                       {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
                         <div className="border-t border-slate-100 p-2 bg-slate-50/50">
                           <div className="flex gap-1">
@@ -474,7 +431,6 @@ const Navbar = () => {
                   </NavLink>
                 )}
 
-                <CartIcon />
                 <NotifIcon />
 
                 <div id="profile-menu" className="relative ml-1">
@@ -533,7 +489,6 @@ const Navbar = () => {
                   className="text-sm font-semibold text-slate-600 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition">
                   Explore
                 </Link>
-                <CartIcon />
                 <NotifIcon />
                 <NavLink to="/auth"
                   className="text-sm font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition text-slate-700">
@@ -547,13 +502,12 @@ const Navbar = () => {
             )}
           </div>
 
-          {/* Mobile: search toggle + cart + notif + hamburger */}
+          {/* Mobile: search toggle + notif + hamburger */}
           <div className="flex lg:hidden items-center gap-0.5">
             <button onClick={() => setSearchOpen(!searchOpen)}
               className="p-2.5 rounded-xl hover:bg-slate-100 transition text-slate-500">
               {searchOpen ? <X size={19} /> : <Search size={19} />}
             </button>
-            <CartIcon />
             <NotifIcon />
             <button
               className="p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition ml-0.5"
@@ -563,7 +517,7 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Mobile search bar — slides down under navbar with live dropdown */}
+        {/* Mobile search bar */}
         <div className={`lg:hidden overflow-hidden transition-all duration-300 ${searchOpen ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0"}`}>
           <div className="px-4 pb-3 pt-2 border-t border-slate-100 relative" ref={mobileSearchRef}>
             <form onSubmit={handleSearch} className="relative">
@@ -733,9 +687,9 @@ const Navbar = () => {
           <div className="px-4 pb-3">
             <div className="grid grid-cols-3 gap-2">
               {[
-                { icon: <Flame size={15} className="text-orange-500" />,    label: "Streak",     sub: "keep going"  },
-                { icon: <Star  size={15} className="text-amber-500"  />,    label: "My Courses", sub: "enrolled"    },
-                { icon: <TrendingUp size={15} className="text-blue-500" />, label: "Progress",   sub: "track it"    },
+                { icon: <Flame size={15} className="text-orange-500" />,    label: "Streak",     sub: "keep going" },
+                { icon: <Star  size={15} className="text-amber-500"  />,    label: "My Courses", sub: "enrolled"   },
+                { icon: <TrendingUp size={15} className="text-blue-500" />, label: "Progress",   sub: "track it"   },
               ].map((s) => (
                 <Link key={s.label} to="/StudentDashboard"
                   className="bg-slate-50 hover:bg-blue-50 active:scale-95 rounded-xl p-3 text-center transition">
