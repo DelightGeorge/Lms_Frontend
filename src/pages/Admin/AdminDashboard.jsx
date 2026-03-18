@@ -9,27 +9,71 @@ import Layout from "../../shared/Layout/Layout";
 import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
 
-// ── All API calls go directly through API (no adminService dependency issues) ─
+// ── Document viewer utility ────────────────────────────────────────────────
+const getFileType = (url = "") => {
+  const lower = url.toLowerCase();
+  if (lower.includes("/raw/upload/")) return "raw";
+  if (lower.includes("/video/upload/") || /\.(mp4|mov|webm|avi)(\?|$)/.test(lower)) return "video";
+  const ext = lower.split("?")[0].split(".").pop();
+  if (["doc", "docx"].includes(ext)) return "raw";
+  if (ext === "pdf") return "pdf";
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return "image";
+  if (lower.includes(".pdf")) return "pdf";
+  if (lower.includes("/image/upload/")) return "image";
+  return "unknown";
+};
+
+const getViewableUrl = (url = "") => {
+  if (!url) return null;
+  const type = getFileType(url);
+  // raw (doc/docx) and pdf → Google Docs viewer (most reliable cross-browser)
+  if (type === "raw" || type === "pdf") {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=false`;
+  }
+  return url; // images and videos open directly
+};
+
+const openDocument = (url) => {
+  const viewUrl = getViewableUrl(url);
+  if (viewUrl) window.open(viewUrl, "_blank", "noopener,noreferrer");
+};
+
+// Reusable document link button
+const DocLink = ({ label, url, icon: Icon = FileText, colorClass = "text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100" }) => {
+  if (!url) return null;
+  const type = getFileType(url);
+  return (
+    <button
+      onClick={() => openDocument(url)}
+      className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg border transition ${colorClass}`}
+    >
+      <Icon size={12} />
+      {label}
+      {type === "video" ? <Eye size={10} /> : <ExternalLink size={10} />}
+    </button>
+  );
+};
+
+// ── All API calls ──────────────────────────────────────────────────────────
 const adminAPI = {
-  getStats:        () => API.get("/admin/stats"),
-  getAnalytics:    () => API.get("/admin/analytics"),
-  getPending:      () => API.get("/admin/courses/pending"),
-  getAllCourses:    () => API.get("/admin/courses/all"),
-  reviewCourse:    (id, body) => API.patch(`/admin/courses/${id}/review`, body),
-  getAllUsers:      () => API.get("/admin/users"),
-  deleteUser:      (id) => API.delete(`/admin/users/${id}`),
-  getPayouts:      () => API.get("/wallet/admin/payouts"),
-  approvePayout:   (id, note) => API.patch(`/wallet/admin/payouts/${id}/approve`, { adminNote: note }),
-  rejectPayout:    (id, note) => API.patch(`/wallet/admin/payouts/${id}/reject`,  { adminNote: note }),
-  getNotifications:() => API.get("/notifications"),
-  getApplications: () => API.get("/instructor-applications"),
-  reviewApplication:(id,body) => API.patch(`/instructor-applications/${id}/review`, body),
+  getStats:         () => API.get("/admin/stats"),
+  getAnalytics:     () => API.get("/admin/analytics"),
+  getPending:       () => API.get("/admin/courses/pending"),
+  getAllCourses:     () => API.get("/admin/courses/all"),
+  reviewCourse:     (id, body) => API.patch(`/admin/courses/${id}/review`, body),
+  getAllUsers:       () => API.get("/admin/users"),
+  deleteUser:       (id) => API.delete(`/admin/users/${id}`),
+  getPayouts:       () => API.get("/wallet/admin/payouts"),
+  approvePayout:    (id, note) => API.patch(`/wallet/admin/payouts/${id}/approve`, { adminNote: note }),
+  rejectPayout:     (id, note) => API.patch(`/wallet/admin/payouts/${id}/reject`,  { adminNote: note }),
+  getNotifications: () => API.get("/notifications"),
+  getApplications:  () => API.get("/instructor-applications"),
+  reviewApplication:(id, body) => API.patch(`/instructor-applications/${id}/review`, body),
 };
 
 const AdminDashboard = () => {
   const { user } = useAuth();
 
-  // ── State ───────────────────────────────────────────────────────────────────
   const [stats,          setStats]          = useState({ totalCourses: 0, totalUsers: 0, totalInstructors: 0, pendingApprovals: 0, totalRevenue: 0, totalEnrollments: 0 });
   const [analytics,      setAnalytics]      = useState(null);
   const [pendingCourses, setPendingCourses] = useState([]);
@@ -41,28 +85,26 @@ const AdminDashboard = () => {
 
   const [loadingStats,   setLoadingStats]   = useState(true);
   const [loadingContent, setLoadingContent] = useState(false);
-  const [loadingNotifs,  setLoadingNotifs]  = useState(false);
 
   const [approvingId,      setApprovingId]      = useState(null);
   const [rejectingId,      setRejectingId]      = useState(null);
   const [deletingId,       setDeletingId]       = useState(null);
   const [processingPayout, setProcessingPayout] = useState(null);
-  const [processingApp,   setProcessingApp]   = useState(null);
-  const [appModal,        setAppModal]        = useState(null);
-  const [appRejectReason, setAppRejectReason] = useState("");
+  const [processingApp,    setProcessingApp]    = useState(null);
+  const [appModal,         setAppModal]         = useState(null);
+  const [appRejectReason,  setAppRejectReason]  = useState("");
 
-  const [toast,           setToast]           = useState(null);
-  const [rejectModal,     setRejectModal]     = useState(null);
-  const [rejectReason,    setRejectReason]    = useState("");
-  const [payoutModal,     setPayoutModal]     = useState(null);
-  const [payoutNote,      setPayoutNote]      = useState("");
-  const [activeTab,       setActiveTab]       = useState("overview");
-  const [searchTerm,      setSearchTerm]      = useState("");
-  const [filterStatus,    setFilterStatus]    = useState("all");
+  const [toast,        setToast]        = useState(null);
+  const [rejectModal,  setRejectModal]  = useState(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [payoutModal,  setPayoutModal]  = useState(null);
+  const [payoutNote,   setPayoutNote]   = useState("");
+  const [activeTab,    setActiveTab]    = useState("overview");
+  const [searchTerm,   setSearchTerm]   = useState("");
+  const [filterStatus, setFilterStatus] = useState("all");
 
   const toast$ = (msg, type = "success") => { setToast({ msg, type }); setTimeout(() => setToast(null), 3500); };
 
-  // ── Fetch stats + analytics on mount ───────────────────────────────────────
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
     Promise.all([
@@ -72,35 +114,31 @@ const AdminDashboard = () => {
     ]).then(([s, a, n]) => {
       const sd = s.data || {};
       setStats({
-        totalCourses:    sd.totalCourses    || 0,
-        totalUsers:      sd.totalUsers      || 0,
-        totalEnrollments:sd.totalEnrollments|| 0,
-        pendingApprovals:sd.pendingCourses  || 0,
-        pendingApps:     0,
-        totalRevenue:    sd.totalRevenue    || 0,
-        totalInstructors:(a.data?.topInstructors?.length) || 0,
+        totalCourses:     sd.totalCourses     || 0,
+        totalUsers:       sd.totalUsers       || 0,
+        totalEnrollments: sd.totalEnrollments || 0,
+        pendingApprovals: sd.pendingCourses   || 0,
+        totalRevenue:     sd.totalRevenue     || 0,
+        totalInstructors: (a.data?.topInstructors?.length) || 0,
       });
-      // Also fetch pending instructor applications count
       adminAPI.getApplications().then((r) => {
-        const apps = Array.isArray(r.data) ? r.data : [];
-        setApplications(apps);
+        setApplications(Array.isArray(r.data) ? r.data : []);
       }).catch(() => {});
       setAnalytics(a.data || null);
       setNotifications(Array.isArray(n.data) ? n.data : []);
     }).finally(() => setLoadingStats(false));
   }, [user]);
 
-  // ── Fetch tab content ───────────────────────────────────────────────────────
   useEffect(() => {
     if (user?.role !== "ADMIN") return;
     if (activeTab === "overview") return;
     setLoadingContent(true);
     const fetchers = {
-      pending:  () => adminAPI.getPending().then((r)      => setPendingCourses(Array.isArray(r.data) ? r.data : [])),
-      courses:  () => adminAPI.getAllCourses().then((r)    => setAllCourses(Array.isArray(r.data) ? r.data : [])),
-      users:    () => adminAPI.getAllUsers().then((r)      => setUsers(Array.isArray(r.data) ? r.data : [])),
+      pending:      () => adminAPI.getPending().then((r)     => setPendingCourses(Array.isArray(r.data) ? r.data : [])),
+      courses:      () => adminAPI.getAllCourses().then((r)   => setAllCourses(Array.isArray(r.data) ? r.data : [])),
+      users:        () => adminAPI.getAllUsers().then((r)     => setUsers(Array.isArray(r.data) ? r.data : [])),
       applications: () => adminAPI.getApplications().then((r) => setApplications(Array.isArray(r.data) ? r.data : [])),
-      payouts:  () => adminAPI.getPayouts().then((r)      => {
+      payouts:      () => adminAPI.getPayouts().then((r) => {
         const list = Array.isArray(r.data) ? r.data : (r.data?.payouts || r.data?.requests || []);
         setPayouts(list);
       }),
@@ -110,7 +148,6 @@ const AdminDashboard = () => {
       .finally(() => setLoadingContent(false));
   }, [user, activeTab]);
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
   const approveCourse = async (id, title) => {
     setApprovingId(id);
     try {
@@ -178,23 +215,22 @@ const AdminDashboard = () => {
     finally { setProcessingPayout(null); }
   };
 
-  // ── Filters ─────────────────────────────────────────────────────────────────
-  const filteredPending = pendingCourses.filter((c) =>
+  const filteredPending  = pendingCourses.filter((c) =>
     c.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     c.instructor?.fullName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const filteredCourses = allCourses.filter((c) => {
+  const filteredCourses  = allCourses.filter((c) => {
     const ms = c.title?.toLowerCase().includes(searchTerm.toLowerCase()) || c.instructor?.fullName?.toLowerCase().includes(searchTerm.toLowerCase());
     const mf = filterStatus === "all" || c.status === filterStatus;
     return ms && mf;
   });
-  const filteredUsers = users.filter((u) =>
+  const filteredUsers    = users.filter((u) =>
     u.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     u.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
-  const filteredPayouts  = payouts.filter((p) => filterStatus === "all" || p.status === filterStatus);
-  const pendingPayoutCount = payouts.filter((p) => p.status === "PENDING").length;
-  const pendingAppsCount   = applications.filter((a) => a.status === "PENDING").length;
+  const filteredPayouts     = payouts.filter((p) => filterStatus === "all" || p.status === filterStatus);
+  const pendingPayoutCount  = payouts.filter((p) => p.status === "PENDING").length;
+  const pendingAppsCount    = applications.filter((a) => a.status === "PENDING").length;
 
   if (user?.role !== "ADMIN") return (
     <Layout hideFloatingBar>
@@ -209,12 +245,12 @@ const AdminDashboard = () => {
   );
 
   const tabs = [
-    { id: "overview", label: "Overview",          icon: BarChart3  },
-    { id: "pending",  label: "Pending Approvals", icon: Clock,     badge: stats.pendingApprovals },
-    { id: "courses",  label: "All Courses",       icon: BookOpen                                 },
-    { id: "users",    label: "Users",             icon: Users                                    },
-    { id: "payouts",  label: "Payouts",           icon: Banknote,  badge: pendingPayoutCount     },
-    { id: "applications", label: "Instructor Apps",  icon: GraduationCap, badge: pendingAppsCount },
+    { id: "overview",      label: "Overview",          icon: BarChart3                              },
+    { id: "pending",       label: "Pending Approvals", icon: Clock,        badge: stats.pendingApprovals },
+    { id: "courses",       label: "All Courses",       icon: BookOpen                               },
+    { id: "users",         label: "Users",             icon: Users                                  },
+    { id: "payouts",       label: "Payouts",           icon: Banknote,     badge: pendingPayoutCount },
+    { id: "applications",  label: "Instructor Apps",   icon: GraduationCap,badge: pendingAppsCount  },
   ];
 
   return (
@@ -243,7 +279,7 @@ const AdminDashboard = () => {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-10 space-y-8">
 
-          {/* Stats row */}
+          {/* Stats */}
           {loadingStats ? (
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
               {Array.from({length:6}).map((_,i) => <div key={i} className="h-24 bg-white rounded-2xl border border-slate-100 animate-pulse" />)}
@@ -251,12 +287,12 @@ const AdminDashboard = () => {
           ) : (
             <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
               {[
-                { label: "Total Courses",   value: stats.totalCourses,                               icon: BookOpen,   color: "bg-blue-50 text-blue-600 border-blue-100"      },
-                { label: "Total Users",     value: stats.totalUsers,                                 icon: Users,      color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
-                { label: "Enrollments",     value: stats.totalEnrollments,                           icon: Award,      color: "bg-purple-50 text-purple-600 border-purple-100" },
-                { label: "Instructors",     value: stats.totalInstructors,                           icon: Activity,   color: "bg-indigo-50 text-indigo-600 border-indigo-100" },
-                { label: "Pending Reviews", value: stats.pendingApprovals,                           icon: Clock,      color: "bg-amber-50 text-amber-600 border-amber-100"    },
-                { label: "Total Revenue",   value: `$${(stats.totalRevenue||0).toLocaleString()}`,   icon: DollarSign, color: "bg-green-50 text-green-600 border-green-100"    },
+                { label: "Total Courses",   value: stats.totalCourses,                             icon: BookOpen,   color: "bg-blue-50 text-blue-600 border-blue-100"        },
+                { label: "Total Users",     value: stats.totalUsers,                               icon: Users,      color: "bg-emerald-50 text-emerald-600 border-emerald-100" },
+                { label: "Enrollments",     value: stats.totalEnrollments,                         icon: Award,      color: "bg-purple-50 text-purple-600 border-purple-100"   },
+                { label: "Instructors",     value: stats.totalInstructors,                         icon: Activity,   color: "bg-indigo-50 text-indigo-600 border-indigo-100"   },
+                { label: "Pending Reviews", value: stats.pendingApprovals,                         icon: Clock,      color: "bg-amber-50 text-amber-600 border-amber-100"      },
+                { label: "Total Revenue",   value: `$${(stats.totalRevenue||0).toLocaleString()}`, icon: DollarSign, color: "bg-green-50 text-green-600 border-green-100"      },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className={`${color} border rounded-2xl p-5 shadow-sm hover:shadow-md transition`}>
                   <div className="flex items-start justify-between">
@@ -287,7 +323,6 @@ const AdminDashboard = () => {
           {/* ── Overview ───────────────────────────────────────────────────── */}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              {/* Top courses */}
               {analytics?.topCourses?.length > 0 && (
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
                   <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
@@ -307,15 +342,13 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               )}
-
-              {/* Top instructors */}
               {analytics?.topInstructors?.length > 0 && (
                 <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
                   <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
                     <Award size={18} className="text-amber-500" /> Top Instructors
                   </h2>
                   <div className="space-y-3">
-                    {analytics.topInstructors.map((inst, i) => (
+                    {analytics.topInstructors.map((inst) => (
                       <div key={inst.id} className="flex items-center gap-4 p-3 rounded-xl hover:bg-slate-50 transition">
                         <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white flex items-center justify-center font-black text-sm shrink-0 overflow-hidden">
                           {inst.avatarUrl ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" /> : inst.fullName?.[0]}
@@ -330,8 +363,6 @@ const AdminDashboard = () => {
                   </div>
                 </div>
               )}
-
-              {/* Recent notifications */}
               <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8">
                 <h2 className="text-xl font-black text-slate-900 mb-5 flex items-center gap-2">
                   <Bell size={18} className="text-blue-500" /> Recent Activity
@@ -358,7 +389,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ── Pending Approvals ───────────────────────────────────────────── */}
+          {/* ── Pending Approvals ──────────────────────────────────────────── */}
           {activeTab === "pending" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <div className="flex items-center justify-between">
@@ -411,7 +442,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ── All Courses ─────────────────────────────────────────────────── */}
+          {/* ── All Courses ────────────────────────────────────────────────── */}
           {activeTab === "courses" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <h2 className="text-2xl font-black text-slate-900">All Courses</h2>
@@ -449,9 +480,9 @@ const AdminDashboard = () => {
                           <td className="py-3.5 px-4 text-slate-500">{c.instructor?.fullName}</td>
                           <td className="py-3.5 px-4">
                             <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              c.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-700" :
+                              c.status === "PUBLISHED"      ? "bg-emerald-100 text-emerald-700" :
                               c.status === "PENDING_REVIEW" ? "bg-amber-100 text-amber-700" :
-                              c.status === "DRAFT" ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"
+                              c.status === "DRAFT"          ? "bg-slate-100 text-slate-600" : "bg-red-100 text-red-700"
                             }`}>{c.status}</span>
                           </td>
                           <td className="py-3.5 px-4 font-semibold text-slate-700">{c.price ? `$${c.price}` : "Free"}</td>
@@ -465,7 +496,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ── Users ───────────────────────────────────────────────────────── */}
+          {/* ── Users ─────────────────────────────────────────────────────── */}
           {activeTab === "users" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <h2 className="text-2xl font-black text-slate-900">All Users <span className="text-slate-400 font-normal text-lg">({filteredUsers.length})</span></h2>
@@ -516,7 +547,7 @@ const AdminDashboard = () => {
             </div>
           )}
 
-          {/* ── Payouts ─────────────────────────────────────────────────────── */}
+          {/* ── Payouts ───────────────────────────────────────────────────── */}
           {activeTab === "payouts" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <div className="flex items-center justify-between">
@@ -544,9 +575,9 @@ const AdminDashboard = () => {
                           <div className="flex items-center gap-3 mb-1 flex-wrap">
                             <p className="font-black text-slate-900 text-lg">${p.amount?.toFixed(2)}</p>
                             <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                              p.status === "PENDING" ? "bg-amber-100 text-amber-700" :
-                              p.status === "APPROVED" ? "bg-blue-100 text-blue-700" :
-                              p.status === "PAID" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
+                              p.status === "PENDING"  ? "bg-amber-100 text-amber-700"   :
+                              p.status === "APPROVED" ? "bg-blue-100 text-blue-700"     :
+                              p.status === "PAID"     ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                             }`}>{p.status}</span>
                           </div>
                           <p className="text-sm font-semibold text-slate-700">{p.instructor?.fullName}</p>
@@ -569,10 +600,8 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
-        </div>
-      </div>
 
-          {/* ── Instructor Applications ─────────────────────────────────── */}
+          {/* ── Instructor Applications ────────────────────────────────────── */}
           {activeTab === "applications" && (
             <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-8 space-y-6">
               <div className="flex items-center justify-between">
@@ -581,8 +610,6 @@ const AdminDashboard = () => {
                   <span className="bg-amber-100 text-amber-700 text-sm font-black px-3 py-1.5 rounded-full">{pendingAppsCount} pending</span>
                 )}
               </div>
-
-              {/* Filter buttons */}
               <div className="flex gap-2 flex-wrap">
                 {["all","PENDING","APPROVED","REJECTED"].map((s) => (
                   <button key={s} onClick={() => setFilterStatus(s)}
@@ -591,7 +618,6 @@ const AdminDashboard = () => {
                   </button>
                 ))}
               </div>
-
               {loadingContent ? (
                 <div className="flex justify-center py-12"><Loader2 size={36} className="animate-spin text-blue-500" /></div>
               ) : applications.filter((a) => filterStatus === "all" || a.status === filterStatus).length === 0 ? (
@@ -606,13 +632,11 @@ const AdminDashboard = () => {
                     .map((app) => (
                     <div key={app.id} className="border border-slate-100 rounded-2xl p-6 hover:shadow-md transition">
                       <div className="flex items-start gap-4">
-                        {/* Avatar */}
                         <div className="w-12 h-12 rounded-2xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black text-lg shrink-0">
                           {app.user?.avatarUrl
                             ? <img src={app.user.avatarUrl} alt="" className="w-full h-full object-cover" />
                             : app.user?.fullName?.[0]}
                         </div>
-
                         <div className="flex-1 min-w-0">
                           <div className="flex items-start justify-between gap-3 flex-wrap">
                             <div>
@@ -620,13 +644,10 @@ const AdminDashboard = () => {
                               <p className="text-sm text-slate-500">{app.user?.email}</p>
                             </div>
                             <span className={`text-xs font-black px-3 py-1.5 rounded-full shrink-0 ${
-                              app.status === "PENDING"  ? "bg-amber-100 text-amber-700" :
-                              app.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" :
-                                                          "bg-red-100 text-red-700"
+                              app.status === "PENDING"  ? "bg-amber-100 text-amber-700"    :
+                              app.status === "APPROVED" ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"
                             }`}>{app.status}</span>
                           </div>
-
-                          {/* Application details */}
                           <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="bg-slate-50 rounded-xl p-3">
                               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Headline</p>
@@ -641,58 +662,35 @@ const AdminDashboard = () => {
                               <p className="text-sm font-semibold text-slate-800">{app.yearsExperience} year{app.yearsExperience !== 1 ? "s" : ""}</p>
                             </div>
                           </div>
-
-                          {/* Bio */}
                           <div className="mt-3 bg-slate-50 rounded-xl p-3">
-                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Bio / Teaching Motivation</p>
+                            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Bio</p>
                             <p className="text-sm text-slate-600 line-clamp-3">{app.bio}</p>
                           </div>
 
-                          {/* Documents */}
+                          {/* ✅ FIX: Document links now use openDocument() for correct viewer routing */}
                           <div className="mt-3 flex gap-2 flex-wrap">
-                            {app.idDocumentUrl && (
-                              <a href={app.idDocumentUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded-lg transition">
-                                <FileText size={12} /> ID Document <ExternalLink size={10} />
-                              </a>
-                            )}
-                            {app.cvUrl && (
-                              <a href={app.cvUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition">
-                                <FileText size={12} /> CV / Resume <ExternalLink size={10} />
-                              </a>
-                            )}
-                            {app.portfolioUrl && (
-                              <a href={app.portfolioUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg transition">
-                                <ExternalLink size={12} /> Portfolio
-                              </a>
-                            )}
-                            {app.sampleVideoUrl && (
-                              <a href={app.sampleVideoUrl} target="_blank" rel="noopener noreferrer"
-                                className="flex items-center gap-1.5 text-xs font-bold text-amber-600 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition">
-                                <Eye size={12} /> Sample Video
-                              </a>
-                            )}
+                            <DocLink label="ID Document" url={app.idDocumentUrl} icon={FileText}
+                              colorClass="text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-100" />
+                            <DocLink label="CV / Resume" url={app.cvUrl} icon={FileText}
+                              colorClass="text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border-indigo-100" />
+                            <DocLink label="Portfolio" url={app.portfolioUrl} icon={ExternalLink}
+                              colorClass="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 border-emerald-100" />
+                            <DocLink label="Sample Video" url={app.sampleVideoUrl} icon={Eye}
+                              colorClass="text-amber-600 bg-amber-50 hover:bg-amber-100 border-amber-100" />
                           </div>
 
-                          {/* Rejection reason if rejected */}
                           {app.status === "REJECTED" && app.rejectionReason && (
                             <div className="mt-3 bg-red-50 border border-red-100 rounded-xl p-3">
                               <p className="text-xs font-bold text-red-500 mb-1">Rejection Reason</p>
                               <p className="text-sm text-red-700">{app.rejectionReason}</p>
                             </div>
                           )}
-
-                          {/* Submission date */}
                           <p className="text-xs text-slate-400 mt-3">
                             Submitted {new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                             {app.reviewedBy && ` · Reviewed by ${app.reviewedBy.fullName}`}
                           </p>
                         </div>
                       </div>
-
-                      {/* Action buttons for pending */}
                       {app.status === "PENDING" && (
                         <div className="flex gap-3 mt-4 pt-4 border-t border-slate-100">
                           <button onClick={() => { setAppModal(app); setAppRejectReason(""); }}
@@ -707,6 +705,9 @@ const AdminDashboard = () => {
               )}
             </div>
           )}
+
+        </div>
+      </div>
 
       {/* Reject Course Modal */}
       {rejectModal && (
@@ -745,13 +746,13 @@ const AdminDashboard = () => {
             </div>
             <div className="bg-slate-50 rounded-2xl p-4 space-y-2.5 text-sm">
               {[
-                ["Instructor",  payoutModal.instructor?.fullName],
-                ["Amount",      `$${payoutModal.amount?.toFixed(2)}`],
-                ["Method",      payoutModal.payoutMethod?.replace("_"," ")],
-                payoutModal.bankName     && ["Bank",        payoutModal.bankName],
-                payoutModal.accountName  && ["Account Name",payoutModal.accountName],
-                payoutModal.accountNumber && ["Account No.", payoutModal.accountNumber],
-                payoutModal.paypalEmail  && ["PayPal",      payoutModal.paypalEmail],
+                ["Instructor",   payoutModal.instructor?.fullName],
+                ["Amount",       `$${payoutModal.amount?.toFixed(2)}`],
+                ["Method",       payoutModal.payoutMethod?.replace("_"," ")],
+                payoutModal.bankName      && ["Bank",         payoutModal.bankName],
+                payoutModal.accountName   && ["Account Name", payoutModal.accountName],
+                payoutModal.accountNumber && ["Account No.",  payoutModal.accountNumber],
+                payoutModal.paypalEmail   && ["PayPal",       payoutModal.paypalEmail],
               ].filter(Boolean).map(([label, val]) => (
                 <div key={label} className="flex justify-between">
                   <span className="text-slate-500">{label}</span>
@@ -777,6 +778,7 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
       {/* Instructor Application Review Modal */}
       {appModal && (
         <div className="fixed inset-0 bg-black/50 z-[1000] flex items-center justify-center p-4">
@@ -785,8 +787,6 @@ const AdminDashboard = () => {
               <h3 className="text-xl font-black text-slate-900">Review Application</h3>
               <button onClick={() => setAppModal(null)} className="text-slate-400 hover:text-slate-600"><X size={22} /></button>
             </div>
-
-            {/* Applicant */}
             <div className="flex items-center gap-3 bg-slate-50 rounded-2xl p-4">
               <div className="w-12 h-12 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-black shrink-0">
                 {appModal.user?.avatarUrl ? <img src={appModal.user.avatarUrl} alt="" className="w-full h-full object-cover" /> : appModal.user?.fullName?.[0]}
@@ -797,56 +797,50 @@ const AdminDashboard = () => {
                 <p className="text-xs text-slate-400">{appModal.expertise} · {appModal.yearsExperience} yrs exp</p>
               </div>
             </div>
-
-            {/* Motivation */}
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Teaching Motivation</p>
               <p className="text-sm text-slate-600 leading-relaxed bg-slate-50 rounded-xl p-4">{appModal.teachingMotivation}</p>
             </div>
 
-            {/* Documents */}
+            {/* ✅ FIX: Modal document links also use openDocument() */}
             <div>
               <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Submitted Documents</p>
               <div className="flex flex-col gap-2">
                 {[
-                  { label: "ID Document", url: appModal.idDocumentUrl, required: true },
-                  { label: "CV / Resume", url: appModal.cvUrl, required: true },
-                  { label: "Portfolio",   url: appModal.portfolioUrl,  required: false },
-                  { label: "Sample Video",url: appModal.sampleVideoUrl,required: false },
-                ].map(({ label, url, required }) => url ? (
-                  <a key={label} href={url} target="_blank" rel="noopener noreferrer"
-                    className="flex items-center justify-between bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl px-4 py-3 transition group">
+                  { label: "ID Document",  url: appModal.idDocumentUrl,  required: true  },
+                  { label: "CV / Resume",  url: appModal.cvUrl,          required: true  },
+                  { label: "Portfolio",    url: appModal.portfolioUrl,    required: false },
+                  { label: "Sample Video", url: appModal.sampleVideoUrl,  required: false },
+                ].filter(({ url }) => !!url).map(({ label, url, required }) => (
+                  <button key={label} onClick={() => openDocument(url)}
+                    className="flex items-center justify-between bg-blue-50 hover:bg-blue-100 border border-blue-100 rounded-xl px-4 py-3 transition group text-left">
                     <div className="flex items-center gap-2">
                       <FileText size={15} className="text-blue-500" />
                       <span className="text-sm font-bold text-blue-700">{label}</span>
                       {required && <span className="text-[10px] bg-blue-200 text-blue-700 px-1.5 py-0.5 rounded font-bold">Required</span>}
                     </div>
                     <ExternalLink size={13} className="text-blue-400 group-hover:text-blue-600" />
-                  </a>
-                ) : null)}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* Reject reason textarea */}
             <div>
               <label className="block text-sm font-bold text-slate-700 mb-2">
                 Rejection Reason <span className="text-slate-400 font-normal">(only needed if rejecting)</span>
               </label>
               <textarea value={appRejectReason} onChange={(e) => setAppRejectReason(e.target.value)}
-                placeholder="Explain why the application is not approved. The applicant will receive this as a notification..."
+                placeholder="Explain why the application is not approved..."
                 rows={3} className="w-full border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-red-500 transition resize-none text-sm" />
             </div>
-
             <div className="flex gap-3">
               <button onClick={() => reviewApp(false)} disabled={processingApp === appModal.id}
                 className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
-                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />}
-                Reject
+                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <X size={15} />} Reject
               </button>
               <button onClick={() => reviewApp(true)} disabled={processingApp === appModal.id}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl py-3 font-bold transition flex items-center justify-center gap-2 text-sm">
-                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />}
-                Approve as Instructor
+                {processingApp === appModal.id ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle size={15} />} Approve as Instructor
               </button>
             </div>
           </div>

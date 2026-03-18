@@ -10,7 +10,36 @@ import Layout from "../shared/Layout/Layout";
 import API from "../services/api";
 import { useAuth } from "../Context/AuthContext";
 
+// ── Document viewer utility ────────────────────────────────────────────────
+const getViewableUrl = (url = "") => {
+  if (!url) return null;
+  const lower = url.toLowerCase();
 
+  // Videos open directly
+  if (lower.includes("/video/upload/") || /\.(mp4|mov|webm|avi)(\?|$)/.test(lower)) {
+    return url;
+  }
+
+  // Raw uploads (doc/docx) → Google Docs Viewer
+  if (lower.includes("/raw/upload/")) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=false`;
+  }
+
+  // PDFs stored as Cloudinary image resource_type or explicit .pdf → Google Docs Viewer
+  if (lower.includes(".pdf") || lower.includes("/image/upload/")) {
+    return `https://docs.google.com/viewer?url=${encodeURIComponent(url)}&embedded=false`;
+  }
+
+  // Images open directly
+  return url;
+};
+
+const openDocument = (url) => {
+  const viewUrl = getViewableUrl(url);
+  if (viewUrl) window.open(viewUrl, "_blank", "noopener,noreferrer");
+};
+
+// ── Helpers ────────────────────────────────────────────────────────────────
 const timeAgo = (d) => {
   const s = Math.floor((Date.now() - new Date(d)) / 1000);
   if (s < 3600)  return `${Math.floor(s / 60)}m ago`;
@@ -20,33 +49,33 @@ const timeAgo = (d) => {
 
 const StatusBadge = ({ status }) => {
   const cfg = {
-    PENDING:  { cls: "bg-amber-100 text-amber-700",  label: "Pending Review" },
-    APPROVED: { cls: "bg-emerald-100 text-emerald-700", label: "Approved" },
-    REJECTED: { cls: "bg-red-100 text-red-600",      label: "Rejected" },
+    PENDING:  { cls: "bg-amber-100 text-amber-700",     label: "Pending Review" },
+    APPROVED: { cls: "bg-emerald-100 text-emerald-700", label: "Approved"       },
+    REJECTED: { cls: "bg-red-100 text-red-600",         label: "Rejected"       },
   }[status] || {};
   return (
     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${cfg.cls}`}>{cfg.label}</span>
   );
 };
 
+// ── DocLink — button instead of <a> so URL goes through getViewableUrl ─────
 const DocLink = ({ url, label, icon: Icon }) => {
   if (!url) return null;
   return (
-    <a
-      href={url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <button
+      onClick={() => openDocument(url)}
       className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition"
     >
       <Icon size={13} />
       {label}
       <ExternalLink size={11} />
-    </a>
+    </button>
   );
 };
 
+// ── Application Card ───────────────────────────────────────────────────────
 const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId }) => {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded]         = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [showRejectForm, setShowRejectForm] = useState(false);
 
@@ -139,10 +168,10 @@ const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId })
           <div>
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2">Documents & Links</p>
             <div className="flex flex-wrap gap-2">
-              <DocLink url={app.idDocumentUrl}   label="Government ID"     icon={FileText} />
-              <DocLink url={app.cvUrl}           label="CV / Resume"        icon={FileText} />
-              <DocLink url={app.portfolioUrl}    label="Portfolio"          icon={Globe} />
-              <DocLink url={app.sampleVideoUrl}  label="Sample Video"       icon={Video} />
+              <DocLink url={app.idDocumentUrl}  label="Government ID" icon={FileText} />
+              <DocLink url={app.cvUrl}          label="CV / Resume"   icon={FileText} />
+              <DocLink url={app.portfolioUrl}   label="Portfolio"     icon={Globe}    />
+              <DocLink url={app.sampleVideoUrl} label="Sample Video"  icon={Video}    />
             </div>
           </div>
 
@@ -154,12 +183,16 @@ const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId })
           {/* Reviewed info if not pending */}
           {app.status !== "PENDING" && (
             <div className={`rounded-xl p-3 border text-sm ${
-              app.status === "APPROVED" ? "bg-emerald-50 border-emerald-200 text-emerald-700" : "bg-red-50 border-red-200 text-red-700"
+              app.status === "APPROVED"
+                ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                : "bg-red-50 border-red-200 text-red-700"
             }`}>
               <p className="font-semibold">
                 {app.status === "APPROVED" ? "✓ Approved" : "✗ Rejected"} by {app.reviewedBy?.fullName} · {timeAgo(app.reviewedAt)}
               </p>
-              {app.rejectionReason && <p className="text-xs mt-1 opacity-80">Reason: {app.rejectionReason}</p>}
+              {app.rejectionReason && (
+                <p className="text-xs mt-1 opacity-80">Reason: {app.rejectionReason}</p>
+              )}
             </div>
           )}
         </div>
@@ -177,8 +210,7 @@ const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId })
               >
                 {approvingId === app.id
                   ? <Loader2 size={16} className="animate-spin" />
-                  : <CheckCircle size={16} />
-                }
+                  : <CheckCircle size={16} />}
                 Approve Instructor
               </button>
               <button
@@ -209,7 +241,9 @@ const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId })
                   disabled={!rejectReason.trim() || rejectingId === app.id}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white rounded-xl font-bold text-sm transition"
                 >
-                  {rejectingId === app.id ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                  {rejectingId === app.id
+                    ? <Loader2 size={14} className="animate-spin" />
+                    : <XCircle size={14} />}
                   Confirm Rejection
                 </button>
                 <button
@@ -227,6 +261,7 @@ const ApplicationCard = ({ app, onApprove, onReject, approvingId, rejectingId })
   );
 };
 
+// ── Page ───────────────────────────────────────────────────────────────────
 export default function AdminInstructorApplicationsPage() {
   const { user } = useAuth();
   const [applications, setApplications] = useState([]);
@@ -340,10 +375,10 @@ export default function AdminInstructorApplicationsPage() {
             {/* Filter tabs */}
             <div className="flex items-center gap-1 mt-4">
               {[
-                { key: "PENDING",  label: "Pending",  icon: Clock },
+                { key: "PENDING",  label: "Pending",  icon: Clock     },
                 { key: "APPROVED", label: "Approved", icon: UserCheck },
-                { key: "REJECTED", label: "Rejected", icon: UserX },
-                { key: "ALL",      label: "All",      icon: Users },
+                { key: "REJECTED", label: "Rejected", icon: UserX     },
+                { key: "ALL",      label: "All",      icon: Users     },
               ].map(({ key, label, icon: Icon }) => (
                 <button
                   key={key}
