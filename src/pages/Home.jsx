@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import Layout from "../shared/Layout/Layout";
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
