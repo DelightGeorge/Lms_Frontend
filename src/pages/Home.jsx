@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import Layout from "../shared/Layout/Layout";
 import {
   Search, TrendingUp, Users, Award, CheckCircle, BookOpen,
@@ -195,8 +195,11 @@ const Home = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     setShowLive(false);
-    setSearchQuery(searchInput);
-    setActiveTab("All");
+    if (searchInput.trim()) {
+      navigate(`/courses?search=${encodeURIComponent(searchInput.trim())}`);
+    } else {
+      document.getElementById("all-courses")?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
   const filteredCourses = courses.filter((c) => {
@@ -462,7 +465,7 @@ const Home = () => {
           )}
 
           {/* ── BROWSE COURSES ── */}
-          <section className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-100/80 shadow-sm">
+          <section id="all-courses" className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-100/80 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
               <div>
                 <h2 className="text-4xl font-black text-slate-900">
