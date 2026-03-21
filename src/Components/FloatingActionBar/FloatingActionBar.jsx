@@ -30,7 +30,7 @@ const FloatingActionBar = ({ hideOnPages = ["/cart", "/checkout", "/payment"] })
             : "opacity-0 translate-y-4 pointer-events-none"
           }`}
       >
-        <a
+        <Link
           href="/help"
           onClick={(e) => e.preventDefault()}
           className="flex items-center justify-end gap-3 px-5 py-3 rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-lg hover:shadow-xl transition-all hover:bg-white group"
@@ -39,9 +39,9 @@ const FloatingActionBar = ({ hideOnPages = ["/cart", "/checkout", "/payment"] })
             Help & Support
           </span>
           <HelpCircle size={18} className="text-slate-700 group-hover:text-amber-600 transition-colors shrink-0" />
-        </a>
+        </Link>
 
-        <a
+        <Link
           href="/contact"
           onClick={(e) => e.preventDefault()}
           className="flex items-center justify-end gap-3 px-5 py-3 rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-lg hover:shadow-xl transition-all hover:bg-white group"
@@ -50,7 +50,7 @@ const FloatingActionBar = ({ hideOnPages = ["/cart", "/checkout", "/payment"] })
             Chat with us
           </span>
           <MessageCircle size={18} className="text-slate-700 group-hover:text-blue-600 transition-colors shrink-0" />
-        </a>
+        </Link>
 
         <Link
           to="/notifications"
