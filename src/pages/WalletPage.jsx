@@ -30,7 +30,7 @@ const Toast = ({ msg, type, onClose }) => (
 );
 
 const BalanceCard = ({ label, amount, icon: Icon, color, sub, badge }) => (
-  <div className={`relative overflow-hidden rounded-3xl p-6 text-white ${color}`}>
+  <div className={`relative overflow-hidden rounded-3xl p-6 text-white ₦{color}`}>
     {/* decorative blob */}
     <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10" />
     <div className="absolute -bottom-8 -left-4 w-24 h-24 rounded-full bg-white/5" />
@@ -60,7 +60,7 @@ const EarningRow = ({ earning }) => {
     <div className="flex items-center gap-4 py-4 border-b border-slate-50 last:border-0">
       {/* source badge */}
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0
-        ${earning.saleSource === "INSTRUCTOR" ? "bg-violet-100" : "bg-blue-100"}`}>
+        ₦{earning.saleSource === "INSTRUCTOR" ? "bg-violet-100" : "bg-blue-100"}`}>
         {earning.saleSource === "INSTRUCTOR"
           ? <Tag size={14} className="text-violet-600" />
           : <Package size={14} className="text-blue-600" />}
@@ -114,7 +114,7 @@ const PayoutRow = ({ payout }) => {
       </div>
       <div className="text-right shrink-0">
         <p className="font-black text-slate-800">{fmt(payout.amount)}</p>
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.color}`}>{s.label}</span>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ₦{s.color}`}>{s.label}</span>
       </div>
     </div>
   );
@@ -138,7 +138,7 @@ const PayoutModal = ({ wallet, onClose, onSuccess }) => {
   const handleSubmit = async () => {
     setError("");
     const amount = parseFloat(form.amount);
-    if (!amount || amount < 25)            return setError("Minimum payout is $25");
+    if (!amount || amount < 25)            return setError("Minimum payout is ₦25");
     if (amount > wallet.availableBalance)  return setError("Exceeds available balance");
     if (!form.accountName && form.payoutMethod === "bank_transfer") return setError("Account name required");
     if (!form.accountNumber && form.payoutMethod === "bank_transfer") return setError("Account number required");
@@ -180,7 +180,7 @@ const PayoutModal = ({ wallet, onClose, onSuccess }) => {
                   placeholder="0.00"
                   className="w-full border border-slate-200 rounded-xl pl-8 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 transition" />
               </div>
-              <p className="text-xs text-slate-400 mt-1">Min $25 · Max {fmt(wallet.availableBalance)}</p>
+              <p className="text-xs text-slate-400 mt-1">Min ₦25 · Max {fmt(wallet.availableBalance)}</p>
             </div>
 
             {/* Method */}
@@ -193,7 +193,7 @@ const PayoutModal = ({ wallet, onClose, onSuccess }) => {
                 ].map(({ value, label, icon: Icon }) => (
                   <button key={value} onClick={() => set("payoutMethod", value)}
                     className={`flex items-center gap-2 p-3 rounded-xl border-2 text-sm font-bold transition
-                      ${form.payoutMethod === value ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
+                      ₦{form.payoutMethod === value ? "border-blue-500 bg-blue-50 text-blue-700" : "border-slate-200 text-slate-600 hover:border-slate-300"}`}>
                     <Icon size={15} /> {label}
                   </button>
                 ))}
@@ -343,7 +343,7 @@ const WalletPage = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <BalanceCard label="Available Balance" amount={wallet?.availableBalance}
             icon={DollarSign} color="bg-gradient-to-br from-blue-600 to-blue-700"
-            sub={wallet?.canRequestPayout ? "Ready to withdraw" : `Need $${(25 - (wallet?.availableBalance || 0)).toFixed(2)} more`}
+            sub={wallet?.canRequestPayout ? "Ready to withdraw" : `Need ₦${(25 - (wallet?.availableBalance || 0)).toFixed(2)} more`}
             badge={wallet?.canRequestPayout ? "Withdrawable" : null} />
 
           <BalanceCard label="Pending Balance" amount={wallet?.pendingBalance}
@@ -364,7 +364,7 @@ const WalletPage = () => {
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
             <Info size={16} className="text-amber-500 shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-bold">Minimum payout is $25.</span> You need{" "}
+              <span className="font-bold">Minimum payout is ₦25.</span> You need{" "}
               <span className="font-bold">{fmt(25 - (wallet?.availableBalance || 0))}</span> more in your available balance.
               Earnings are released 30 days after each sale.
             </p>
@@ -408,11 +408,11 @@ const WalletPage = () => {
             ].map((t) => (
               <button key={t.id} onClick={() => setTab(t.id)}
                 className={`flex-1 py-4 text-sm font-bold transition flex items-center justify-center gap-2
-                  ${tab === t.id ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
+                  ₦{tab === t.id ? "text-blue-600 border-b-2 border-blue-600" : "text-slate-500 hover:text-slate-700"}`}>
                 {t.label}
                 {t.count > 0 && (
                   <span className={`text-[10px] font-black px-2 py-0.5 rounded-full
-                    ${tab === t.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
+                    ₦{tab === t.id ? "bg-blue-100 text-blue-600" : "bg-slate-100 text-slate-500"}`}>
                     {t.count}
                   </span>
                 )}
@@ -443,7 +443,7 @@ const WalletPage = () => {
                   <div className="text-center py-12">
                     <Banknote size={40} className="text-slate-200 mx-auto mb-3" />
                     <p className="font-bold text-slate-500">No payout requests yet</p>
-                    <p className="text-xs text-slate-400 mt-1">Request a payout once you have $25+ in your available balance</p>
+                    <p className="text-xs text-slate-400 mt-1">Request a payout once you have ₦25+ in your available balance</p>
                   </div>
                 ) : (
                   <div>
