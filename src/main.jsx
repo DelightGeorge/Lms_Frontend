@@ -19,6 +19,8 @@ import Design from "./pages/Categories/Design.jsx";
 import Cart from "./pages/Cart.jsx";
 import Notifications from "./pages/Notifications.jsx";
 import VerifyEmail from "./pages/VerifyEmail.jsx";
+import ForgotPassword from "./pages/ForgotPassword.jsx";
+import ResetPassword from "./pages/ResetPassword.jsx";
 import PaymentVerify from "./pages/PaymentVerify.jsx";
 import { AuthProvider } from "./Context/AuthContext.jsx";
 import Profile from "./pages/Profile.jsx";
@@ -34,6 +36,7 @@ import StudentProfilePage from "./pages/Student/StudentProfilePage.jsx";
 import InstructorPublicProfile from "./pages/InstructorPublicProfile.jsx";
 import InstructorsPage from "./pages/InstructorsPage.jsx";
 import PageLoader from "./Components/PageLoader.jsx";
+import ForInstructors from "./pages/ForInstructors.jsx";
 import ForBusinesses from "./pages/ForBusinesses.jsx";
 import Pricing from "./pages/Pricing.jsx";
 import AboutUs from "./pages/AboutUs.jsx";
@@ -48,68 +51,79 @@ import Terms from "./pages/Terms.jsx";
 import Privacy from "./pages/Privacy.jsx";
 import Cookies from "./pages/Cookies.jsx";
 import Contact from "./pages/Contact.jsx";
-import ForInstructors from "./pages/ForInstructors.jsx";
 
 const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
     children: [
-      { index: true, element: <Home /> },
-      { path: "auth", element: <Auth /> },
-      { path: "/profile", element: <Profile /> },
-      { path: "/verify-email", element: <VerifyEmail /> },
-      { path: "courses", element: <CourseList /> },
-      { path: "courses/:id", element: <CourseDetail /> },
-      { path: "lessonplayer", element: <LessonPlayer /> },
-      { path: "StudentDashboard", element: <StudentDashboard /> },
-      { path: "admindashboard", element: <AdminDashboard /> },
-      { path: "instructordashboard", element: <InstructorDashboard /> },
-      { path: "cart", element: <Cart /> },
-      { path: "notifications", element: <Notifications /> },
-      { path: "payment/verify", element: <PaymentVerify /> },
-      { path: "/checkout", element: <CheckoutPage /> },
-      { path: "/payment/callback", element: <PaymentCallbackPage /> },
-      { path: "/instructor/wallet", element: <WalletPage /> },
-      { path: "/instructor/coupons", element: <CouponsPage /> },
-      { path: "/admin/payouts", element: <AdminPayoutsPage /> },
-      { path: "/become-instructor", element: <InstructorApplicationPage /> },
-      { path: "/certificate/:courseId", element: <CertificatePage /> },
-      { path: "/student-profile", element: <StudentProfilePage /> },
-      { path: "/student-profile/:userId", element: <StudentProfilePage /> },
-      {
-        path: "/instructors/:instructorId",
-        element: <InstructorPublicProfile />,
-      },
-      { path: "/instructors", element: <InstructorsPage /> },
-      { path: "/instructor/wallet", element: <WalletPage /> },
-      { path: "/for-instructors", element: <ForInstructors /> },
-      { path: "/for-businesses", element: <ForBusinesses /> },
-      { path: "/pricing", element: <Pricing /> },
-      { path: "/about", element: <AboutUs /> },
-      { path: "/careers", element: <Careers /> },
-      { path: "/blog", element: <Blog /> },
-      { path: "/press", element: <Press /> },
-      { path: "/help", element: <HelpCenter /> },
-      { path: "/community", element: <Community /> },
-      { path: "/docs", element: <Documentation /> },
-      { path: "/api-reference", element: <ApiReference /> },
-      { path: "/terms", element: <Terms /> },
-      { path: "/privacy", element: <Privacy /> },
-      { path: "/cookies", element: <Cookies /> },
-      { path: "/contact", element: <Contact /> },
-      {
-        path: "/admin/instructor-applications",
-        element: <AdminInstructorApplicationsPage />,
-      },
+      // ── Core ──────────────────────────────────────────────────────────────
+      { index: true,                             element: <Home /> },
+      { path: "auth",                            element: <Auth /> },
+      { path: "/verify-email",                   element: <VerifyEmail /> },
+      { path: "/forgot-password",                element: <ForgotPassword /> },
+      { path: "/reset-password/:token",          element: <ResetPassword /> },
+
+      // ── User ──────────────────────────────────────────────────────────────
+      { path: "/profile",                        element: <Profile /> },
+      { path: "/student-profile",                element: <StudentProfilePage /> },
+      { path: "/student-profile/:userId",        element: <StudentProfilePage /> },
+      { path: "notifications",                   element: <Notifications /> },
+
+      // ── Courses ───────────────────────────────────────────────────────────
+      { path: "courses",                         element: <CourseList /> },
+      { path: "courses/:id",                     element: <CourseDetail /> },
+      { path: "lessonplayer",                    element: <LessonPlayer /> },
+      { path: "/certificate/:courseId",          element: <CertificatePage /> },
+
+      // ── Dashboards ────────────────────────────────────────────────────────
+      { path: "StudentDashboard",                element: <StudentDashboard /> },
+      { path: "admindashboard",                  element: <AdminDashboard /> },
+      { path: "instructordashboard",             element: <InstructorDashboard /> },
+
+      // ── Instructor ────────────────────────────────────────────────────────
+      { path: "/become-instructor",              element: <InstructorApplicationPage /> },
+      { path: "/instructor/wallet",              element: <WalletPage /> },
+      { path: "/instructor/coupons",             element: <CouponsPage /> },
+      { path: "/instructors",                    element: <InstructorsPage /> },
+      { path: "/instructors/:instructorId",      element: <InstructorPublicProfile /> },
+
+      // ── Admin ─────────────────────────────────────────────────────────────
+      { path: "/admin/payouts",                  element: <AdminPayoutsPage /> },
+      { path: "/admin/instructor-applications",  element: <AdminInstructorApplicationsPage /> },
+
+      // ── Payments ──────────────────────────────────────────────────────────
+      { path: "cart",                            element: <Cart /> },
+      { path: "/checkout",                       element: <CheckoutPage /> },
+      { path: "/payment/callback",               element: <PaymentCallbackPage /> },
+      { path: "payment/verify",                  element: <PaymentVerify /> },
+
+      // ── Static pages ──────────────────────────────────────────────────────
+      { path: "/for-instructors",                element: <ForInstructors /> },
+      { path: "/for-businesses",                 element: <ForBusinesses /> },
+      { path: "/pricing",                        element: <Pricing /> },
+      { path: "/about",                          element: <AboutUs /> },
+      { path: "/careers",                        element: <Careers /> },
+      { path: "/blog",                           element: <Blog /> },
+      { path: "/press",                          element: <Press /> },
+      { path: "/help",                           element: <HelpCenter /> },
+      { path: "/community",                      element: <Community /> },
+      { path: "/docs",                           element: <Documentation /> },
+      { path: "/api-reference",                  element: <ApiReference /> },
+      { path: "/terms",                          element: <Terms /> },
+      { path: "/privacy",                        element: <Privacy /> },
+      { path: "/cookies",                        element: <Cookies /> },
+      { path: "/contact",                        element: <Contact /> },
+
+      // ── Categories ────────────────────────────────────────────────────────
       {
         path: "categories/",
         element: <Categories />,
         children: [
           { path: "development", element: <Development /> },
-          { path: "business", element: <Business /> },
-          { path: "design", element: <Design /> },
-          { path: "marketing", element: <Marketing /> },
+          { path: "business",    element: <Business /> },
+          { path: "design",      element: <Design /> },
+          { path: "marketing",   element: <Marketing /> },
         ],
       },
     ],
