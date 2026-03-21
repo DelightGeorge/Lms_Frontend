@@ -8,22 +8,22 @@ import {
   Award, BookOpen, CheckCircle, Star, Zap, Flame,
   Target, TrendingUp, Trophy, Medal, Shield,
   Calendar, ArrowRight, Loader2, GraduationCap,
-  BarChart2, Edit3, Lock,
+  BarChart2, Edit3, Lock, Share2, ExternalLink,
 } from "lucide-react";
 
 const fmtDate = (d) =>
   new Date(d).toLocaleDateString("en-US", { month: "short", year: "numeric" });
 
 const getAchievements = ({ total, completed, totalLessons, avgProgress, quizAttempts }) => [
-  { id: "first_enroll",    icon: BookOpen,    label: "First Steps",   desc: "Enrolled in first course",   unlocked: total >= 1,                       color: "from-sky-400 to-blue-500"      },
-  { id: "first_complete",  icon: CheckCircle, label: "Graduate",      desc: "Completed first course",     unlocked: completed >= 1,                   color: "from-emerald-400 to-teal-500"  },
-  { id: "three_courses",   icon: Trophy,      label: "Committed",     desc: "Enrolled in 3+ courses",     unlocked: total >= 3,                       color: "from-violet-400 to-purple-500" },
-  { id: "five_complete",   icon: Medal,       label: "Scholar",       desc: "Completed 5 courses",        unlocked: completed >= 5,                   color: "from-amber-400 to-orange-500"  },
-  { id: "fifty_lessons",   icon: Flame,       label: "On Fire",       desc: "50 lessons completed",       unlocked: totalLessons >= 50,               color: "from-orange-400 to-red-500"    },
-  { id: "hundred_lessons", icon: Zap,         label: "Speed Learner", desc: "100+ lessons done",          unlocked: totalLessons >= 100,              color: "from-yellow-400 to-amber-400"  },
-  { id: "perfectionist",   icon: Star,        label: "Perfectionist", desc: "100% average progress",      unlocked: avgProgress === 100 && total > 0, color: "from-pink-400 to-rose-500"     },
-  { id: "quiz_taker",      icon: Target,      label: "Quiz Master",   desc: "Attempted 10+ quizzes",      unlocked: (quizAttempts || 0) >= 10,        color: "from-indigo-400 to-blue-500"   },
-  { id: "ten_complete",    icon: Shield,      label: "Elite Learner", desc: "Completed 10 courses",       unlocked: completed >= 10,                  color: "from-slate-600 to-slate-800"   },
+  { id: "first_enroll",    icon: BookOpen,    label: "First Steps",   desc: "Enrolled in first course",    unlocked: total >= 1,                       color: "from-sky-400 to-blue-500"      },
+  { id: "first_complete",  icon: CheckCircle, label: "Graduate",      desc: "Completed first course",      unlocked: completed >= 1,                   color: "from-emerald-400 to-teal-500"  },
+  { id: "three_courses",   icon: Trophy,      label: "Committed",     desc: "Enrolled in 3+ courses",      unlocked: total >= 3,                       color: "from-violet-400 to-purple-500" },
+  { id: "five_complete",   icon: Medal,       label: "Scholar",       desc: "Completed 5 courses",         unlocked: completed >= 5,                   color: "from-amber-400 to-orange-500"  },
+  { id: "fifty_lessons",   icon: Flame,       label: "On Fire",       desc: "50 lessons completed",        unlocked: totalLessons >= 50,               color: "from-orange-400 to-red-500"    },
+  { id: "hundred_lessons", icon: Zap,         label: "Speed Learner", desc: "100+ lessons done",           unlocked: totalLessons >= 100,              color: "from-yellow-400 to-amber-400"  },
+  { id: "perfectionist",   icon: Star,        label: "Perfectionist", desc: "100% average progress",       unlocked: avgProgress === 100 && total > 0, color: "from-pink-400 to-rose-500"     },
+  { id: "quiz_master",     icon: Target,      label: "Quiz Master",   desc: "Attempted 10+ quizzes",       unlocked: quizAttempts >= 10,               color: "from-indigo-400 to-blue-500"   },
+  { id: "ten_complete",    icon: Shield,      label: "Elite Learner", desc: "Completed 10 courses",        unlocked: completed >= 10,                  color: "from-slate-600 to-slate-800"   },
 ];
 
 const Ring = ({ pct, size = 72, stroke = 6, color = "#f59e0b" }) => {
@@ -78,25 +78,54 @@ export default function StudentProfilePage() {
   const [profileUser,  setProfileUser]  = useState(null);
   const [quizAttempts, setQuizAttempts] = useState(0);
   const [loading,      setLoading]      = useState(true);
+  const [copied,       setCopied]       = useState(false);
 
-  const isOwn = !paramUserId || paramUserId === currentUser?.id;
+  // String-safe own-check — both IDs come back as strings from the API
+  const isOwn = !paramUserId || String(paramUserId) === String(currentUser?.id);
 
   useEffect(() => {
-    if (!currentUser) { navigate("/auth"); return; }
+    if (!currentUser) {
+      navigate("/auth");
+      return;
+    }
+
     (async () => {
       try {
-        const [enrollRes, profileRes] = await Promise.all([
+        const requests = [
           API.get("/enrollments/my"),
           isOwn
             ? API.get("/users/me").catch(() => ({ data: null }))
             : API.get(`/users/${paramUserId}`).catch(() => ({ data: null })),
-        ]);
+        ];
+
+        // Also fetch quiz attempts count for the achievements badge
+        if (isOwn) {
+          requests.push(
+            API.get("/quizzes/my-attempts-count").catch(() => ({ data: { count: 0 } }))
+          );
+        }
+
+        const results = await Promise.all(requests);
+        const [enrollRes, profileRes, quizRes] = results;
+
         setEnrollments(Array.isArray(enrollRes.data) ? enrollRes.data : []);
-        setProfileUser(isOwn ? (profileRes.data || currentUser) : (profileRes.data || currentUser));
-      } catch (e) { console.error(e); }
-      finally { setLoading(false); }
+        setProfileUser(profileRes.data || currentUser);
+        if (quizRes) setQuizAttempts(quizRes.data?.count || quizRes.data?.total || 0);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
     })();
-  }, [currentUser, paramUserId]);
+  }, [currentUser, paramUserId, isOwn]);
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/student-profile/${profileUser?.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   if (loading) return (
     <Layout>
@@ -110,8 +139,11 @@ export default function StudentProfilePage() {
   const total        = enrollments.length;
   const completed    = enrollments.filter(e => e.progress === 100).length;
   const inProgress   = enrollments.filter(e => e.progress > 0 && e.progress < 100).length;
-  const totalLessons = enrollments.reduce((a, e) => a + (e.completedLessons || 0), 0);
-  const avgProgress  = total > 0 ? Math.round(enrollments.reduce((a, e) => a + (e.progress || 0), 0) / total) : 0;
+  // completedLessons may come as a count field or derived from progress — use whichever exists
+  const totalLessons = enrollments.reduce((a, e) => a + (e.completedLessons || e.lessonsCompleted || 0), 0);
+  const avgProgress  = total > 0
+    ? Math.round(enrollments.reduce((a, e) => a + (e.progress || 0), 0) / total)
+    : 0;
   const achievements = getAchievements({ total, completed, totalLessons, avgProgress, quizAttempts });
   const unlocked     = achievements.filter(a => a.unlocked).length;
 
@@ -128,14 +160,16 @@ export default function StudentProfilePage() {
     <Layout>
       <div className="min-h-screen bg-slate-50 pt-16">
 
-        {/* ── Hero — full self-contained section, no overlap ─── */}
+        {/* ── Hero ── */}
         <div className="bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 relative overflow-hidden">
           <div className="absolute -top-20 -right-20 w-80 h-80 bg-blue-500/20 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute bottom-0 left-1/3 w-56 h-56 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
           <div className="absolute inset-0 opacity-[0.06]"
-            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
+            style={{ backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)", backgroundSize: "40px 40px" }} />
+
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 py-10">
-            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+
               {/* Avatar */}
               <div className="relative shrink-0">
                 <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-2xl overflow-hidden border-4 border-white/20 shadow-2xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center">
@@ -147,20 +181,34 @@ export default function StudentProfilePage() {
                   {level}
                 </span>
               </div>
+
               {/* Name + meta */}
               <div className="flex-1 min-w-0 text-center sm:text-left">
                 <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                   <div>
                     <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">{user?.fullName}</h1>
-                    <p className="text-slate-400 text-sm mt-1">{user?.email}</p>
+                    <p className="text-slate-400 text-sm mt-0.5">{user?.email}</p>
+                    {user?.bio && (
+                      <p className="text-slate-400 text-xs mt-1.5 max-w-md leading-relaxed line-clamp-2">{user.bio}</p>
+                    )}
                   </div>
-                  {isOwn && (
-                    <Link to="/profile"
-                      className="self-center sm:self-start flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-xl transition shrink-0">
-                      <Edit3 size={13} /> Edit Profile
-                    </Link>
-                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex items-center gap-2 justify-center sm:justify-start shrink-0">
+                    {isOwn && (
+                      <Link to="/profile"
+                        className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-xl transition">
+                        <Edit3 size={13} /> Edit Profile
+                      </Link>
+                    )}
+                    <button onClick={handleShare}
+                      className="flex items-center gap-1.5 text-xs font-bold text-slate-300 hover:text-white bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-2 rounded-xl transition">
+                      <Share2 size={13} />
+                      {copied ? "Copied!" : "Share"}
+                    </button>
+                  </div>
                 </div>
+
                 <div className="flex flex-wrap gap-2 mt-4 justify-center sm:justify-start">
                   <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300 bg-amber-500/20 border border-amber-500/30 px-3 py-1.5 rounded-full">
                     <Trophy size={11} /> {unlocked}/{achievements.length} Achievements
@@ -184,57 +232,61 @@ export default function StudentProfilePage() {
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 mt-6">
 
-          {/* ── Stats row ─────────────────────────────────────── */}
+          {/* ── Stats ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             <Stat icon={BookOpen}    label="Enrolled"     value={total}             grad="bg-gradient-to-br from-blue-500 to-blue-600"     />
             <Stat icon={CheckCircle} label="Completed"    value={completed}         grad="bg-gradient-to-br from-emerald-500 to-teal-500"  />
-            <Stat icon={Flame}       label="Lessons Done" value={totalLessons}      grad="bg-gradient-to-br from-orange-400 to-red-500"    />
+            <Stat icon={Flame}       label="Lessons Done" value={totalLessons || "—"} grad="bg-gradient-to-br from-orange-400 to-red-500"  />
             <Stat icon={TrendingUp}  label="Avg Progress" value={`${avgProgress}%`} grad="bg-gradient-to-br from-violet-500 to-purple-600" />
           </div>
 
-          {/* ── Two-column body ────────────────────────────────── */}
+          {/* ── Body ── */}
           <div className="flex flex-col lg:flex-row gap-6 pb-16 items-start">
 
-            {/* LEFT col — fixed width on desktop */}
+            {/* LEFT */}
             <div className="w-full lg:w-72 xl:w-80 shrink-0 space-y-5">
 
-              {/* Progress */}
+              {/* Progress ring */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
                   <BarChart2 size={13} className="text-violet-500" /> Progress Overview
                 </h3>
-                <div className="flex items-center gap-4 mb-2">
-                  <div className="relative shrink-0">
-                    <Ring pct={avgProgress} size={68} stroke={7} color={avgProgress === 100 ? "#10b981" : "#f59e0b"} />
-                    <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-slate-900">
-                      {avgProgress}%
-                    </span>
-                  </div>
-                  <div className="flex-1 space-y-2.5">
-                    {[
-                      { label: "Done",        count: completed,                      color: "bg-emerald-500" },
-                      { label: "In Progress", count: inProgress,                     color: "bg-amber-400"  },
-                      { label: "Not Started", count: total - completed - inProgress, color: "bg-slate-200"  },
-                    ].map(({ label, count, color }) => (
-                      <div key={label}>
-                        <div className="flex justify-between mb-0.5">
-                          <span className="text-[10px] text-slate-500 font-medium">{label}</span>
-                          <span className="text-[10px] font-black text-slate-700">{count}</span>
+                {total === 0 ? (
+                  <p className="text-xs text-slate-400 text-center py-4">Enroll in a course to see progress</p>
+                ) : (
+                  <div className="flex items-center gap-4 mb-2">
+                    <div className="relative shrink-0">
+                      <Ring pct={avgProgress} size={68} stroke={7} color={avgProgress === 100 ? "#10b981" : "#f59e0b"} />
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-black text-slate-900">
+                        {avgProgress}%
+                      </span>
+                    </div>
+                    <div className="flex-1 space-y-2.5">
+                      {[
+                        { label: "Done",        count: completed,                      color: "bg-emerald-500" },
+                        { label: "In Progress", count: inProgress,                     color: "bg-amber-400"   },
+                        { label: "Not Started", count: total - completed - inProgress, color: "bg-slate-200"   },
+                      ].map(({ label, count, color }) => (
+                        <div key={label}>
+                          <div className="flex justify-between mb-0.5">
+                            <span className="text-[10px] text-slate-500 font-medium">{label}</span>
+                            <span className="text-[10px] font-black text-slate-700">{count}</span>
+                          </div>
+                          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${color} rounded-full transition-all duration-700`}
+                              style={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }} />
+                          </div>
                         </div>
-                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div className={`h-full ${color} rounded-full transition-all duration-700`}
-                            style={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }} />
-                        </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Certificates */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                  <GraduationCap size={13} className="text-amber-500" /> Certificates
+                  <GraduationCap size={13} className="text-amber-500" /> Certificates ({completed})
                 </h3>
                 {completed === 0 ? (
                   <div className="text-center py-6">
@@ -251,10 +303,12 @@ export default function StudentProfilePage() {
                           <Award size={16} className="text-white" />
                         </div>
                         <p className="flex-1 text-xs font-bold text-slate-800 truncate min-w-0">{e.course?.title}</p>
-                        <Link to={`/certificate/${e.courseId}`}
-                          className="shrink-0 text-[10px] font-black text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg transition">
-                          View
-                        </Link>
+                        {isOwn && (
+                          <Link to={`/certificate/${e.courseId}`}
+                            className="shrink-0 text-[10px] font-black text-amber-600 hover:text-amber-800 bg-amber-100 hover:bg-amber-200 px-2 py-1 rounded-lg transition flex items-center gap-1">
+                            View <ExternalLink size={9} />
+                          </Link>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -262,7 +316,7 @@ export default function StudentProfilePage() {
               </div>
             </div>
 
-            {/* RIGHT col — grows to fill remaining space */}
+            {/* RIGHT */}
             <div className="flex-1 min-w-0 space-y-5">
 
               {/* Achievements */}
@@ -271,26 +325,38 @@ export default function StudentProfilePage() {
                   <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
                     <Award size={13} className="text-amber-500" /> Achievements
                   </h3>
-                  <span className="text-xs font-bold text-slate-400">{unlocked} / {achievements.length} unlocked</span>
+                  <span className="text-xs font-bold text-slate-400">{unlocked}/{achievements.length} unlocked</span>
                 </div>
                 <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mb-5">
                   <div className="h-full bg-gradient-to-r from-amber-400 to-yellow-400 rounded-full transition-all duration-700"
                     style={{ width: `${(unlocked / achievements.length) * 100}%` }} />
                 </div>
-                <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-                  {achievements.map(a => <Badge key={a.id} a={a} />)}
-                </div>
+                {total === 0 && unlocked === 0 ? (
+                  <div className="text-center py-6">
+                    <Trophy size={28} className="text-slate-200 mx-auto mb-2" />
+                    <p className="text-xs text-slate-400">Start learning to unlock achievements</p>
+                    <Link to="/courses" className="inline-flex items-center gap-1.5 mt-3 text-xs font-bold text-blue-600 hover:text-blue-700 transition">
+                      Browse Courses <ArrowRight size={11} />
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                    {achievements.map(a => <Badge key={a.id} a={a} />)}
+                  </div>
+                )}
               </div>
 
-              {/* All Courses */}
+              {/* Course list */}
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                    <BookOpen size={13} className="text-blue-500" /> My Courses
+                    <BookOpen size={13} className="text-blue-500" /> {isOwn ? "My Courses" : "Enrolled Courses"}
                   </h3>
-                  <Link to="/StudentDashboard" className="text-[11px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1 transition">
-                    Dashboard <ArrowRight size={11} />
-                  </Link>
+                  {isOwn && (
+                    <Link to="/StudentDashboard" className="text-[11px] font-bold text-blue-500 hover:text-blue-700 flex items-center gap-1 transition">
+                      Dashboard <ArrowRight size={11} />
+                    </Link>
+                  )}
                 </div>
 
                 {total === 0 ? (
@@ -299,11 +365,13 @@ export default function StudentProfilePage() {
                       <BookOpen size={22} className="text-amber-300" />
                     </div>
                     <p className="text-sm font-bold text-slate-500 mb-1">No courses yet</p>
-                    <p className="text-xs text-slate-400 mb-4">Start learning to earn achievements</p>
-                    <Link to="/courses"
-                      className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
-                      <Zap size={13} /> Browse Courses
-                    </Link>
+                    <p className="text-xs text-slate-400 mb-4">Start learning to earn achievements and certificates</p>
+                    {isOwn && (
+                      <Link to="/courses"
+                        className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition shadow-sm">
+                        <Zap size={13} /> Browse Courses
+                      </Link>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-1">
@@ -322,10 +390,10 @@ export default function StudentProfilePage() {
                           <div className="flex items-center gap-2 mt-1.5">
                             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                               <div className={`h-full rounded-full transition-all duration-700 ${e.progress === 100 ? "bg-emerald-500" : "bg-amber-400"}`}
-                                style={{ width: `${e.progress}%` }} />
+                                style={{ width: `${e.progress || 0}%` }} />
                             </div>
                             <span className={`text-[10px] font-black shrink-0 ${e.progress === 100 ? "text-emerald-600" : "text-amber-600"}`}>
-                              {e.progress === 100 ? "✓ Done" : `${e.progress}%`}
+                              {e.progress === 100 ? "✓ Done" : `${e.progress || 0}%`}
                             </span>
                           </div>
                         </div>
