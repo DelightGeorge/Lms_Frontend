@@ -25,13 +25,13 @@ const FloatingActionBar = ({ hideOnPages = ["/cart", "/checkout", "/payment"] })
       <div
         className={`fixed right-6 z-[9998] flex flex-col gap-2 transition-all duration-300
           bottom-[calc(88px+64px+8px)] sm:bottom-[calc(24px+64px+8px)]
-          ${showMenu
+          ₦{showMenu
             ? "opacity-100 translate-y-0 pointer-events-auto"
             : "opacity-0 translate-y-4 pointer-events-none"
           }`}
       >
         <a
-          href="#"
+          href="/help"
           onClick={(e) => e.preventDefault()}
           className="flex items-center justify-end gap-3 px-5 py-3 rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-lg hover:shadow-xl transition-all hover:bg-white group"
         >
@@ -42,7 +42,7 @@ const FloatingActionBar = ({ hideOnPages = ["/cart", "/checkout", "/payment"] })
         </a>
 
         <a
-          href="#"
+          href="/contact"
           onClick={(e) => e.preventDefault()}
           className="flex items-center justify-end gap-3 px-5 py-3 rounded-full bg-white/95 backdrop-blur-xl border border-slate-200/60 shadow-lg hover:shadow-xl transition-all hover:bg-white group"
         >
