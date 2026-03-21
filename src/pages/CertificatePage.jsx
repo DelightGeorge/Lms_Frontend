@@ -125,10 +125,10 @@ const CertificatePage = () => {
       `}</style>
 
       <Layout>
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50/20 py-8 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-amber-50/20 pt-20 pb-8 px-4">
 
           {/* ── Top bar (hidden on print) ── */}
-          <div className="max-w-4xl mx-auto mb-6 flex items-center justify-between print:hidden">
+          <div className="max-w-4xl mx-auto mb-6 mt-6 flex items-center justify-between print:hidden">
             <button onClick={() => navigate(-1)}
               className="flex items-center gap-2 text-slate-500 hover:text-slate-800 transition text-sm font-medium">
               <ArrowLeft size={15} /> Back
