@@ -34,7 +34,7 @@ const uploadToCloudinary = async (file, resourceType = "auto") => {
   return (await res.json()).secure_url;
 };
 
-const fmt = (n) => `$${(n || 0).toFixed(2)}`;
+const fmt = (n) => `₦${(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
 const statusConfig = {
   PUBLISHED:      { color: "bg-emerald-100 text-emerald-700 border-emerald-200", dot: "bg-emerald-500", label: "Published"      },

@@ -15,7 +15,7 @@ import { useAuth } from "../Context/AuthContext";
 
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-const fmt = (n) => `$${(n || 0).toFixed(2)}`;
+const fmt = (n) => `₦${(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
 // ── Coupon Input ──────────────────────────────────────────────────────────────
 const CouponInput = ({ courseId, onApply, onRemove, applied }) => {

@@ -10,7 +10,7 @@ import API from "../services/api";
 
 
 // ── helpers ───────────────────────────────────────────────────────────────────
-const fmt     = (n) => `$${(n || 0).toFixed(2)}`;
+const fmt     = (n) => `₦${(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 const fmtDate = (d) => new Date(d).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 
 const STATUS_CONFIG = {

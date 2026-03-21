@@ -7,7 +7,7 @@ import { CheckCircle, XCircle, Loader2, BookOpen, ArrowRight, Home, TrendingUp }
 import Layout from "../shared/Layout/Layout";
 import API from "../services/api";
 
-const fmt = (n) => `$${(n || 0).toFixed(2)}`;
+const fmt = (n) => `₦${(n || 0).toLocaleString("en-NG", { minimumFractionDigits: 2 })}`;
 
 const PaymentCallbackPage = () => {
   const [searchParams] = useSearchParams();

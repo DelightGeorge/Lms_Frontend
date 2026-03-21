@@ -658,7 +658,7 @@ const CourseDetail = () => {
                   <Award size={14} /> Certificate Earned
                 </div>
                 <div className="flex flex-col gap-3">
-                  <button onClick={() => { setCelebration(false); navigate(`/certificate/${id}`); }}
+                  <button onClick={() => { setCelebration(false); navigate(`/certificate/₦{id}`); }}
                     className="w-full py-3.5 bg-white text-orange-600 rounded-2xl font-black hover:bg-orange-50 transition text-sm">
                     View Certificate
                   </button>
@@ -693,7 +693,7 @@ const CourseDetail = () => {
               <div className="hidden sm:flex items-center gap-2 bg-white/10 rounded-full px-3 py-1.5 shrink-0">
                 <div className="w-20 h-1.5 bg-white/10 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-400 rounded-full transition-all"
-                    style={{ width: `${progress.percentage}%` }} />
+                    style={{ width: `₦{progress.percentage}%` }} />
                 </div>
                 <span className="text-xs font-bold text-emerald-400">{progress.percentage}%</span>
               </div>
