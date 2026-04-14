@@ -244,6 +244,108 @@ const Navbar = () => {
     </Link>
   );
 
+  // ── Mobile search results — normal flow, not absolute ───────
+  // Rendered in the document flow so no parent overflow clips it
+  const MobileSearchResults = ({ onResultClick }) => (
+    <div
+      className="mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
+      style={{ maxHeight: "60vh", overflowY: "auto" }}
+    >
+      {searchLoading ? (
+        <div className="flex flex-col items-center justify-center py-8 gap-3">
+          <div className="relative w-9 h-9">
+            <div className="absolute inset-0 rounded-full border-2 border-blue-100" />
+            <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
+            <Search size={12} className="absolute inset-0 m-auto text-blue-400" />
+          </div>
+          <p className="text-xs text-slate-400">Finding results…</p>
+        </div>
+      ) : (
+        <>
+          {searchResults.courses.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 px-4 pt-3 pb-1">
+                <BookOpen size={11} className="text-blue-500" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
+                <span className="ml-auto text-[10px] text-slate-300">{searchResults.courses.length} found</span>
+              </div>
+              {searchResults.courses.map((course) => (
+                <Link key={course.id} to={`/courses/${course.id}`} onClick={onResultClick}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-blue-50 transition border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl">
+                  <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                    {course.thumbnail
+                      ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center bg-blue-50">
+                          <BookOpen size={14} className="text-slate-400" />
+                        </div>}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800 truncate leading-tight">{course.title}</p>
+                    {course.instructor?.fullName && (
+                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{course.instructor.fullName}</p>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-lg ${
+                    course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-700"
+                  }`}>
+                    {course.price === 0 ? "Free" : `$${course.price}`}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {searchResults.instructors.length > 0 && (
+            <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+              <div className="flex items-center gap-2 px-4 pt-2 pb-1">
+                <Users size={11} className="text-indigo-500" />
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+              </div>
+              {searchResults.instructors.map((inst) => (
+                <Link key={inst.id} to={`/instructors/${inst.id}`} onClick={onResultClick}
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-indigo-50 transition border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
+                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm">
+                    {inst.avatarUrl
+                      ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
+                      : inst.fullName?.[0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-slate-800 truncate">{inst.fullName}</p>
+                    {inst.expertise && <p className="text-[10px] text-slate-400 truncate mt-0.5">{inst.expertise}</p>}
+                  </div>
+                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0">View</span>
+                </Link>
+              ))}
+            </div>
+          )}
+
+          {searchResults.courses.length === 0 && searchResults.instructors.length === 0 && searchQuery.trim() && (
+            <div className="text-center py-8">
+              <Search size={22} className="text-slate-200 mx-auto mb-2" />
+              <p className="text-sm font-bold text-slate-400">No results for "{searchQuery}"</p>
+              <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+            </div>
+          )}
+
+          {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
+            <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+              <div className="flex gap-1">
+                <Link to={`/courses?search=${encodeURIComponent(searchQuery)}`} onClick={onResultClick}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-xl transition">
+                  <BookOpen size={11} /> All courses
+                </Link>
+                <Link to={`/instructors?search=${encodeURIComponent(searchQuery)}`} onClick={onResultClick}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 rounded-xl transition">
+                  <Users size={11} /> All instructors
+                </Link>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+
   // ── Shared search results dropdown ────────────────────────
   const SearchDropdown = ({ onResultClick }) => (
     <div
@@ -592,8 +694,11 @@ const Navbar = () => {
         </div>
 
         {/* Mobile search bar */}
-        <div className={`lg:hidden overflow-hidden transition-all duration-300 ${searchOpen ? "max-h-[80vh] opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="px-4 pb-3 pt-2 border-t border-slate-100 relative" ref={mobileSearchRef}>
+        {/* NOTE: no overflow-hidden here — that would clip the results dropdown */}
+        <div className={`lg:hidden transition-all duration-300 ${
+          searchOpen ? "opacity-100" : "opacity-0 pointer-events-none h-0 overflow-hidden"
+        }`}>
+          <div className="px-4 pb-3 pt-2 border-t border-slate-100" ref={mobileSearchRef}>
             <form onSubmit={handleSearch} className="relative">
               {searchLoading
                 ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 animate-spin z-10" size={15} />
@@ -615,11 +720,9 @@ const Navbar = () => {
               )}
             </form>
 
-            {/* Mobile results */}
+            {/* Mobile results — rendered in normal flow (not absolute) so nothing clips it */}
             {showDropdown && hasResults && (
-              <div className="mt-2 max-h-[60vh] overflow-y-auto">
-                <SearchDropdown onResultClick={handleResultClick} />
-              </div>
+              <MobileSearchResults onResultClick={handleResultClick} />
             )}
           </div>
         </div>
