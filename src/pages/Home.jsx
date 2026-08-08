@@ -9,6 +9,19 @@ import {
 import { getAllCourses, getAllCategories } from "../services/courseService";
 import API from "../services/api";
 
+// ── Palette tokens (blueprint direction) ─────────────────
+const INK       = "#22262B";
+const BLUE      = "#1B3A5C";
+const BLUE_DEEP = "#12283D";
+const PAPER     = "#EEF1F3";
+const LINE      = "#D8DEE3";
+const MUTED     = "#5B6570";
+const ORANGE    = "#D65A2E";
+const MOSS      = "#4C7A5C";
+
+const DISPLAY_FONT = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
+const MONO_FONT    = "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace";
+
 // ── Placeholder images ───────────────────────────────────
 const placeholderImgs = [
   "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
@@ -22,102 +35,127 @@ const placeholderImgs = [
 const getImg = (course, idx) =>
   course?.thumbnail || placeholderImgs[idx % placeholderImgs.length];
 
-// ── Feature Card ─────────────────────────────────────────
-// ✅ FIXED: Removed gradient + backdrop-blur, replaced with clean white card
-const PremiumFeature = ({ icon, title, desc }) => (
-  <div className="group relative">
-    <div className="relative bg-white border border-slate-200 rounded-2xl p-8 hover:border-blue-400 hover:shadow-xl transition-all duration-300 h-full">
-      <div className="relative space-y-4">
-        <div className="w-14 h-14 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform duration-300">
-          {icon}
-        </div>
-        <div>
-          <h3 className="font-bold text-slate-900 text-lg">{title}</h3>
-          <p className="text-slate-600 text-sm leading-relaxed mt-2">{desc}</p>
-        </div>
-      </div>
-    </div>
+// ── Signature motif: registration corner marks ───────────
+const CornerMarks = ({ color = BLUE, size = 12 }) => (
+  <>
+    <span className="absolute -top-px -left-px border-t-2 border-l-2 pointer-events-none"
+      style={{ width: size, height: size, borderColor: color }} />
+    <span className="absolute -top-px -right-px border-t-2 border-r-2 pointer-events-none"
+      style={{ width: size, height: size, borderColor: color }} />
+    <span className="absolute -bottom-px -left-px border-b-2 border-l-2 pointer-events-none"
+      style={{ width: size, height: size, borderColor: color }} />
+    <span className="absolute -bottom-px -right-px border-b-2 border-r-2 pointer-events-none"
+      style={{ width: size, height: size, borderColor: color }} />
+  </>
+);
+
+// ── Signature motif: drafting grid background ────────────
+const DraftGrid = ({ dark = false, opacity = 0.06 }) => (
+  <div
+    className="absolute inset-0 pointer-events-none"
+    style={{
+      backgroundImage: `linear-gradient(${dark ? "255,255,255" : "27,58,92"},${opacity}) 1px, transparent 1px),
+                         linear-gradient(90deg, rgba(${dark ? "255,255,255" : "27,58,92"},${opacity}) 1px, transparent 1px)`
+        .replace(/linear-gradient\((\d+,\d+,\d+),/, "linear-gradient(rgba($1,"),
+      backgroundSize: "44px 44px",
+    }}
+  />
+);
+
+// ── Leader-line stat ──────────────────────────────────────
+const LedgerStat = ({ value, label, color = BLUE }) => (
+  <div className="flex flex-col gap-1 pl-3 border-l-2" style={{ borderColor: color }}>
+    <span className="text-2xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>{value}</span>
+    <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ fontFamily: MONO_FONT, color: MUTED }}>
+      {label}
+    </span>
   </div>
 );
 
-// ── Premium Course Card ───────────────────────────────
-const PremiumCourseCard = ({ course, idx }) => (
-  <Link to={`/courses/${course?.id}`} className="group block h-full">
-    <div className="h-full bg-white rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-500 flex flex-col border border-slate-100/60 hover:border-amber-200/60">
-      <div className="relative overflow-hidden h-48">
-        <img
-          src={getImg(course, idx)}
-          alt={course?.title || "Course"}
-          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-center justify-center">
-          <div className="w-14 h-14 bg-white/95 rounded-full flex items-center justify-center shadow-2xl transform scale-75 group-hover:scale-100 transition-transform duration-500">
-            <Play size={22} className="text-amber-600 ml-0.5 fill-current" />
+// ── Feature card ──────────────────────────────────────────
+const BlueprintFeature = ({ icon, title, desc, index }) => (
+  <div className="relative bg-white border rounded-md p-7 h-full" style={{ borderColor: LINE }}>
+    <div className="flex items-start justify-between mb-5">
+      <div className="w-11 h-11 rounded-md flex items-center justify-center text-white" style={{ backgroundColor: BLUE }}>
+        {icon}
+      </div>
+      <span className="text-[10px] font-semibold tracking-widest" style={{ fontFamily: MONO_FONT, color: MUTED }}>
+        {String(index + 1).padStart(2, "0")}
+      </span>
+    </div>
+    <h3 className="font-bold text-base" style={{ color: INK }}>{title}</h3>
+    <p className="text-sm leading-relaxed mt-2" style={{ color: MUTED }}>{desc}</p>
+  </div>
+);
+
+// ── Course card ───────────────────────────────────────────
+const BlueprintCourseCard = ({ course, idx }) => {
+  const isFree = (course?.price ?? 1) === 0;
+  return (
+    <Link to={`/courses/${course?.id}`} className="group block h-full">
+      <div className="relative h-full bg-white rounded-md overflow-hidden border flex flex-col transition-shadow duration-200 hover:shadow-lg"
+        style={{ borderColor: LINE }}>
+        <span className="absolute top-3 left-3 z-10">
+          <CornerMarks color="#FFFFFF" size={10} />
+        </span>
+        <div className="relative overflow-hidden h-44">
+          <img
+            src={getImg(course, idx)}
+            alt={course?.title || "Course"}
+            className="w-full h-full object-cover grayscale-[15%] group-hover:grayscale-0 transition-all duration-500"
+          />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-300 flex items-center justify-center">
+            <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 scale-90 group-hover:scale-100 transition-all duration-300">
+              <Play size={18} style={{ color: BLUE }} className="ml-0.5 fill-current" />
+            </div>
           </div>
         </div>
-        <div className="absolute top-4 left-4">
-          {(course?.price ?? 1) === 0 ? (
-            <span className="inline-flex items-center gap-1.5 bg-emerald-500/90 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full font-bold border border-emerald-400/30">
-              <Sparkles size={12} /> Complimentary
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 bg-amber-500/90 backdrop-blur-sm text-white text-xs px-3 py-1.5 rounded-full font-bold border border-amber-400/30">
-              <Zap size={12} /> Premium
-            </span>
-          )}
-        </div>
-      </div>
-      <div className="p-5 flex flex-col flex-1">
-        <h3 className="font-bold text-slate-900 text-sm line-clamp-2 group-hover:text-amber-600 transition-colors mb-1.5">
-          {course?.title || "Untitled Course"}
-        </h3>
-        <p className="text-xs text-slate-500 mb-3">
-          {course?.instructor?.fullName || "Expert Instructor"}
-        </p>
-        <p className="text-xs text-slate-600 line-clamp-2 mb-4 flex-1">
-          {course?.description || ""}
-        </p>
-        <div className="border-t border-slate-100/60 pt-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex text-amber-400">
-                {[...Array(5)].map((_, i) => <span key={i} className="text-xs">★</span>)}
-              </div>
-              <span className="text-xs font-semibold text-slate-700">4.8</span>
+        <div className="p-5 flex flex-col flex-1">
+          <h3 className="font-bold text-sm line-clamp-2 mb-1" style={{ color: INK }}>
+            {course?.title || "Untitled Course"}
+          </h3>
+          <p className="text-xs mb-3" style={{ color: MUTED, fontFamily: MONO_FONT }}>
+            {course?.instructor?.fullName || "Instructor TBD"}
+          </p>
+          <p className="text-xs line-clamp-2 mb-4 flex-1" style={{ color: MUTED }}>
+            {course?.description || ""}
+          </p>
+          <div className="border-t pt-3 flex items-center justify-between" style={{ borderColor: LINE }}>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold" style={{ color: INK }}>4.8</span>
+              <span className="text-[10px]" style={{ color: MUTED }}>rating</span>
             </div>
             {course?.category?.name && (
-              <span className="text-[10px] bg-slate-100/80 text-slate-700 font-semibold px-2 py-1 rounded-full">
-                {course.category.name}
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-sm border" style={{ color: MUTED, borderColor: LINE, fontFamily: MONO_FONT }}>
+                {course.category.name.toUpperCase()}
               </span>
             )}
           </div>
-          <div className="flex items-center justify-between">
-            <p className="font-bold text-slate-900">
-              {(course?.price ?? 1) === 0
-                ? <span className="text-emerald-600">Complimentary</span>
-                : <span className="text-amber-600">${course?.price}</span>}
+          <div className="flex items-center justify-between mt-3">
+            <p className="font-black text-sm" style={{ fontFamily: MONO_FONT, color: isFree ? MOSS : ORANGE }}>
+              {isFree ? "FREE" : `$${course?.price}`}
             </p>
-            <span className="text-xs text-slate-500 flex items-center gap-1">
+            <span className="text-[10px] flex items-center gap-1" style={{ color: MUTED }}>
               <Clock size={11} /> 6h+
             </span>
           </div>
         </div>
       </div>
-    </div>
-  </Link>
-);
+    </Link>
+  );
+};
 
 // ── Skeleton loader ───────────────────────────────
 const CourseSkeleton = () => (
-  <div className="bg-white rounded-2xl overflow-hidden border border-slate-100/60 animate-pulse h-full flex flex-col">
-    <div className="w-full h-48 bg-slate-100" />
+  <div className="bg-white rounded-md overflow-hidden border animate-pulse h-full flex flex-col" style={{ borderColor: LINE }}>
+    <div className="w-full h-44" style={{ backgroundColor: PAPER }} />
     <div className="p-5 space-y-3 flex-1">
-      <div className="h-4 bg-slate-100 rounded w-3/4" />
-      <div className="h-3 bg-slate-100 rounded w-1/2" />
-      <div className="h-3 bg-slate-100 rounded w-full" />
-      <div className="mt-auto pt-3 border-t border-slate-100 space-y-2">
-        <div className="h-4 bg-slate-100 rounded w-1/3" />
-        <div className="h-4 bg-slate-100 rounded w-1/2" />
+      <div className="h-4 rounded w-3/4" style={{ backgroundColor: PAPER }} />
+      <div className="h-3 rounded w-1/2" style={{ backgroundColor: PAPER }} />
+      <div className="h-3 rounded w-full" style={{ backgroundColor: PAPER }} />
+      <div className="mt-auto pt-3 border-t space-y-2" style={{ borderColor: LINE }}>
+        <div className="h-4 rounded w-1/3" style={{ backgroundColor: PAPER }} />
+        <div className="h-4 rounded w-1/2" style={{ backgroundColor: PAPER }} />
       </div>
     </div>
   </div>
@@ -241,30 +279,28 @@ const Home = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/50 overflow-x-hidden">
+      <div className="min-h-screen" style={{ backgroundColor: PAPER }}>
 
         {/* ── HERO ── */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 blur-3xl rounded-full pointer-events-none" />
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-slate-700/10 blur-3xl rounded-full pointer-events-none" />
+        <section className="relative overflow-hidden" style={{ backgroundColor: BLUE_DEEP }}>
+          <DraftGrid dark opacity={0.05} />
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 sm:py-32 grid lg:grid-cols-2 gap-16 items-center">
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 py-24 sm:py-28 grid lg:grid-cols-2 gap-16 items-center">
             <div className="space-y-8 text-white">
-              <div className="space-y-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/8 border border-white/15 text-sm font-medium backdrop-blur-sm">
-                  <span className="relative flex h-2 w-2 bg-emerald-400 rounded-full" />
-                  Elevate Your Skills
+              <div className="space-y-5">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-sm text-xs font-semibold tracking-widest"
+                  style={{ borderColor: "rgba(255,255,255,0.25)", fontFamily: MONO_FONT }}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ORANGE }} />
+                  CATALOG — {new Date().getFullYear()}
                 </div>
-                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-tight">
-                  Master the skills
+                <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight leading-[1.05]"
+                  style={{ fontFamily: DISPLAY_FONT }}>
+                  Build skills
                   <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-300">
-                    that matter
-                  </span>
+                  <span style={{ color: ORANGE }}>you can ship.</span>
                 </h1>
-                <p className="text-lg text-slate-300 max-w-xl leading-relaxed">
-                  Learn from world-class instructors and industry leaders. Transform your career with courses designed for excellence.
+                <p className="text-base text-white/70 max-w-xl leading-relaxed">
+                  Courses built by people who do the work. Pick a subject, work through it at your pace, and walk away with something you can use.
                 </p>
               </div>
 
@@ -272,111 +308,115 @@ const Home = () => {
                 <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-2">
                   <div className="relative flex-1">
                     {liveLoading
-                      ? <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 text-amber-400 animate-spin z-10" size={17} />
-                      : <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={17} />}
+                      ? <Loader2 className="absolute left-4 top-1/2 -translate-y-1/2 animate-spin z-10" size={16} style={{ color: ORANGE }} />
+                      : <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-white/50 z-10" size={16} />}
                     <input
                       value={searchInput}
                       onChange={(e) => handleLiveSearch(e.target.value)}
                       onFocus={() => { setHeroFocused(true); searchInput.trim() && setShowLive(true); }}
                       onBlur={() => setTimeout(() => { setHeroFocused(false); setShowLive(false); }, 300)}
-                      placeholder="Search courses or find an instructor..."
-                      className="w-full bg-white/15 border border-white/20 rounded-xl py-4 pl-12 pr-10 outline-none focus:bg-white focus:text-slate-900 focus:border-amber-400 focus:placeholder:text-slate-400 transition placeholder:text-slate-300 text-sm text-white backdrop-blur-sm"
+                      placeholder="Search a course or instructor"
+                      className="w-full bg-white/10 border border-white/20 rounded-sm py-3.5 pl-11 pr-10 outline-none focus:bg-white focus:text-slate-900 transition placeholder:text-white/40 text-sm text-white"
+                      style={{ borderColor: "rgba(255,255,255,0.2)" }}
                     />
                     {searchInput && (
                       <button type="button" onClick={clearLive}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition z-10">
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition z-10">
                         <X size={14} />
                       </button>
                     )}
                   </div>
                   <button type="submit"
-                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-bold py-4 px-8 rounded-xl shadow-xl shadow-amber-600/30 whitespace-nowrap text-sm transition-all duration-300 active:scale-95">
-                    Explore
+                    className="font-bold py-3.5 px-7 rounded-sm whitespace-nowrap text-sm text-white transition-colors active:scale-95"
+                    style={{ backgroundColor: ORANGE }}>
+                    Search
                   </button>
                 </form>
 
                 {/* Live results dropdown */}
                 {showLive && searchInput.trim() && (
-                  <div onMouseDown={(e) => e.preventDefault()} className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden max-h-[420px] overflow-y-auto">
+                  <div onMouseDown={(e) => e.preventDefault()}
+                    className="absolute top-full left-0 right-0 mt-2 bg-white rounded-sm shadow-2xl border z-[999] overflow-hidden max-h-[420px] overflow-y-auto"
+                    style={{ borderColor: LINE }}>
                     {liveLoading ? (
                       <div className="flex flex-col items-center justify-center py-8 gap-2">
-                        <div className="relative w-8 h-8">
-                          <div className="absolute inset-0 rounded-full border-2 border-amber-100" />
-                          <div className="absolute inset-0 rounded-full border-2 border-t-amber-500 animate-spin" />
-                          <Search size={12} className="absolute inset-0 m-auto text-amber-400" />
-                        </div>
-                        <p className="text-xs text-slate-400">Finding results…</p>
+                        <Loader2 size={20} className="animate-spin" style={{ color: BLUE }} />
+                        <p className="text-xs" style={{ color: MUTED }}>Searching…</p>
                       </div>
                     ) : (
                       <>
                         {liveResults.courses.length > 0 && (
                           <div>
                             <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-                              <BookOpen size={11} className="text-amber-500" />
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
-                              <span className="ml-auto text-[10px] text-slate-300">{liveResults.courses.length} found</span>
+                              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Courses</p>
+                              <span className="ml-auto text-[10px]" style={{ color: MUTED }}>{liveResults.courses.length} found</span>
                             </div>
                             {liveResults.courses.map((course) => (
                               <Link key={course.id} to={`/courses/${course.id}`}
                                 onClick={clearLive}
-                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-amber-50 transition group border-l-2 border-transparent hover:border-amber-500 mx-1 rounded-r-xl">
-                                <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-sm">
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition border-l-2 border-transparent mx-1"
+                                style={{ "--tw-border-opacity": 1 }}
+                                onMouseEnter={(e) => e.currentTarget.style.borderColor = BLUE}
+                                onMouseLeave={(e) => e.currentTarget.style.borderColor = "transparent"}>
+                                <div className="w-12 h-9 rounded-sm overflow-hidden bg-slate-100 shrink-0">
                                   {course.thumbnail
                                     ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-                                    : <div className="w-full h-full flex items-center justify-center bg-amber-50"><BookOpen size={13} className="text-amber-300" /></div>}
+                                    : <div className="w-full h-full flex items-center justify-center"><BookOpen size={13} style={{ color: LINE }} /></div>}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-slate-800 truncate group-hover:text-amber-700 transition-colors">{course.title}</p>
-                                  <p className="text-[10px] text-slate-400 mt-0.5">{course.instructor?.fullName}</p>
+                                  <p className="text-sm font-bold truncate" style={{ color: INK }}>{course.title}</p>
+                                  <p className="text-[10px] mt-0.5" style={{ color: MUTED }}>{course.instructor?.fullName}</p>
                                 </div>
-                                <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-lg ${(course.price ?? 1) === 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-700"}`}>
-                                  {(course.price ?? 1) === 0 ? "Free" : `$${course.price}`}
+                                <span className="text-[10px] font-bold shrink-0" style={{ fontFamily: MONO_FONT, color: (course.price ?? 1) === 0 ? MOSS : ORANGE }}>
+                                  {(course.price ?? 1) === 0 ? "FREE" : `$${course.price}`}
                                 </span>
                               </Link>
                             ))}
                           </div>
                         )}
                         {liveResults.instructors.length > 0 && (
-                          <div className={liveResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+                          <div className={liveResults.courses.length > 0 ? "border-t mt-1 pt-1" : ""} style={{ borderColor: LINE }}>
                             <div className="flex items-center gap-2 px-4 pt-2 pb-1">
-                              <Users size={11} className="text-indigo-500" />
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+                              <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Instructors</p>
                             </div>
                             {liveResults.instructors.map((inst) => (
                               <Link key={inst.id} to={`/instructors/${inst.id}`}
                                 onClick={clearLive}
-                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-indigo-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
-                                <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm ring-2 ring-white shadow-sm">
+                                className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition mx-1">
+                                <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 text-white font-black text-sm"
+                                  style={{ backgroundColor: BLUE }}>
                                   {inst.avatarUrl ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" /> : (inst.fullName?.[0] || "?")}
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700">{inst.fullName}</p>
-                                  <p className="text-[10px] text-slate-400 truncate">{inst.expertise || "Instructor"}{inst._count?.courses ? ` · ${inst._count.courses} courses` : ""}</p>
+                                  <p className="text-sm font-bold truncate" style={{ color: INK }}>{inst.fullName}</p>
+                                  <p className="text-[10px] truncate" style={{ color: MUTED }}>{inst.expertise || "Instructor"}{inst._count?.courses ? ` · ${inst._count.courses} courses` : ""}</p>
                                 </div>
-                                <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-indigo-100 transition">View</span>
+                                <span className="text-[10px] font-bold shrink-0" style={{ color: BLUE }}>View</span>
                               </Link>
                             ))}
                           </div>
                         )}
                         {liveResults.courses.length === 0 && liveResults.instructors.length === 0 && (
                           <div className="text-center py-10">
-                            <Search size={22} className="text-slate-200 mx-auto mb-2" />
-                            <p className="text-sm font-bold text-slate-400">No results for "{searchInput}"</p>
-                            <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+                            <Search size={20} className="mx-auto mb-2" style={{ color: LINE }} />
+                            <p className="text-sm font-bold" style={{ color: MUTED }}>No results for "{searchInput}"</p>
+                            <p className="text-xs mt-1" style={{ color: MUTED }}>Try a different keyword</p>
                           </div>
                         )}
                         {(liveResults.courses.length > 0 || liveResults.instructors.length > 0) && (
-                          <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+                          <div className="border-t p-2" style={{ borderColor: LINE, backgroundColor: PAPER }}>
                             <div className="flex gap-1">
                               <Link to={`/courses?search=${encodeURIComponent(searchInput)}`}
                                 onClick={clearLive}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-amber-600 hover:bg-amber-50 rounded-xl transition">
-                                <BookOpen size={11} /> All courses
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold hover:bg-white rounded-sm transition"
+                                style={{ color: BLUE }}>
+                                All courses
                               </Link>
                               <Link to={`/instructors?search=${encodeURIComponent(searchInput)}`}
                                 onClick={clearLive}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition">
-                                <Users size={11} /> All instructors
+                                className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold hover:bg-white rounded-sm transition"
+                                style={{ color: BLUE }}>
+                                All instructors
                               </Link>
                             </div>
                           </div>
@@ -387,39 +427,31 @@ const Home = () => {
                 )}
               </div>
 
-              <div className="pt-4 grid grid-cols-3 gap-4 max-w-md">
-                <div className="text-center">
-                  <p className="text-2xl font-black text-amber-400">{publishedCount || "500+"}</p>
-                  <p className="text-xs text-slate-400 mt-1">Premium Courses</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black text-emerald-400">{stats.students}</p>
-                  <p className="text-xs text-slate-400 mt-1">Active Learners</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-2xl font-black text-blue-400">4.9★</p>
-                  <p className="text-xs text-slate-400 mt-1">Average Rating</p>
-                </div>
+              <div className="pt-4 flex gap-8">
+                <LedgerStat value={publishedCount || "500+"} label="Courses" color={ORANGE} />
+                <LedgerStat value={stats.students} label="Learners" color={MOSS} />
+                <LedgerStat value="4.9" label="Avg rating" color="#7B93A8" />
               </div>
             </div>
 
             <div className="relative hidden lg:block">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl">
+              <div className="relative rounded-sm overflow-hidden">
+                <CornerMarks color={ORANGE} size={16} />
                 <img
                   src="https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=900&q=80"
-                  alt="Premium Learning"
-                  className="w-full h-full object-cover"
+                  alt="Student working through course material"
+                  className="w-full h-full object-cover grayscale-[20%]"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent" />
+                <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(18,40,61,0.5), transparent 50%)" }} />
               </div>
-              <div className="absolute -bottom-6 -left-6 bg-white/95 backdrop-blur-xl rounded-2xl p-5 shadow-2xl border border-white/40">
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-sm p-5 shadow-2xl border" style={{ borderColor: LINE }}>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center text-white">
-                    <CheckCircle size={20} />
+                  <div className="w-11 h-11 rounded-sm flex items-center justify-center text-white" style={{ backgroundColor: MOSS }}>
+                    <CheckCircle size={18} />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Success Rate</p>
-                    <p className="text-xl font-black text-slate-900">97%</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Completion rate</p>
+                    <p className="text-xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>97%</p>
                   </div>
                 </div>
               </div>
@@ -432,25 +464,25 @@ const Home = () => {
           {/* ── FEATURED COURSES ── */}
           {!searchQuery && featuredCourses.length > 0 && (
             <section>
-              <div className="mb-10">
-                <div className="inline-flex items-center gap-2 mb-3">
-                  <div className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Featured</span>
+              <div className="mb-10 flex items-end justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: ORANGE, fontFamily: MONO_FONT }}>§ 01 — Featured</p>
+                  <h2 className="text-4xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>Trending this week</h2>
                 </div>
-                <h2 className="text-4xl font-black text-slate-900">Trending Courses</h2>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 {loadingCourses
                   ? [1,2,3,4].map((i) => <CourseSkeleton key={i} />)
                   : featuredCourses.map((course, idx) => (
-                      <PremiumCourseCard key={course.id} course={course} idx={idx} />
+                      <BlueprintCourseCard key={course.id} course={course} idx={idx} />
                     ))}
               </div>
               {!loadingCourses && publishedCount > 4 && (
                 <div className="flex justify-center mt-10">
                   <Link to="/courses"
-                    className="inline-flex items-center gap-2 border-2 border-amber-500/40 text-amber-600 hover:bg-amber-50 font-black px-8 py-3.5 rounded-xl transition text-sm">
-                    See All Trending <ArrowRight size={16} />
+                    className="inline-flex items-center gap-2 border-2 font-bold px-7 py-3 rounded-sm transition text-sm hover:bg-white"
+                    style={{ borderColor: BLUE, color: BLUE }}>
+                    See all trending <ArrowRight size={16} />
                   </Link>
                 </div>
               )}
@@ -458,19 +490,21 @@ const Home = () => {
           )}
 
           {/* ── BROWSE COURSES ── */}
-          <section id="all-courses" className="bg-white/70 backdrop-blur-sm rounded-3xl p-8 sm:p-12 border border-slate-100/80 shadow-sm">
+          <section id="all-courses" className="bg-white rounded-sm p-8 sm:p-12 border" style={{ borderColor: LINE }}>
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
               <div>
-                <h2 className="text-4xl font-black text-slate-900">
-                  {searchQuery ? `Results for "${searchQuery}"` : "All Courses"}
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: ORANGE, fontFamily: MONO_FONT }}>§ 02 — Catalog</p>
+                <h2 className="text-4xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>
+                  {searchQuery ? `Results for "${searchQuery}"` : "All courses"}
                 </h2>
-                <p className="text-slate-600 mt-2">
+                <p className="mt-2" style={{ color: MUTED }}>
                   {isFiltering ? filteredBrowse.length : publishedCount} course{(isFiltering ? filteredBrowse.length : publishedCount) !== 1 ? "s" : ""} available
                 </p>
               </div>
               {searchQuery && (
                 <button onClick={() => { setSearchQuery(""); setSearchInput(""); }}
-                  className="text-sm font-bold text-red-500 hover:bg-red-50/50 rounded-lg px-4 py-2 transition-colors flex items-center gap-1">
+                  className="text-sm font-bold rounded-sm px-4 py-2 transition-colors flex items-center gap-1 border"
+                  style={{ color: ORANGE, borderColor: ORANGE }}>
                   <Filter size={14} /> Clear
                 </button>
               )}
@@ -479,11 +513,10 @@ const Home = () => {
             <div className="flex gap-2 overflow-x-auto pb-4 mb-10 scrollbar-hide">
               {categoryTabs.map((tab) => (
                 <button key={tab} onClick={() => setActiveTab(tab)}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
-                    activeTab === tab
-                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-500/30"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}>
+                  className="px-5 py-2.5 rounded-sm text-sm font-bold whitespace-nowrap transition-colors border"
+                  style={activeTab === tab
+                    ? { backgroundColor: BLUE, color: "#fff", borderColor: BLUE }
+                    : { backgroundColor: "transparent", color: MUTED, borderColor: LINE }}>
                   {tab}
                 </button>
               ))}
@@ -495,26 +528,27 @@ const Home = () => {
               </div>
             ) : filteredBrowse.length === 0 ? (
               <div className="text-center py-20">
-                <BookOpen size={56} className="text-slate-200 mx-auto mb-4" />
-                <p className="font-bold text-slate-600 text-xl">
+                <BookOpen size={48} className="mx-auto mb-4" style={{ color: LINE }} />
+                <p className="font-bold text-xl" style={{ color: INK }}>
                   {searchQuery ? "No courses found" : "No more courses yet"}
                 </p>
-                <p className="text-slate-500 text-sm mt-2">
-                  {searchQuery ? "Try different keywords" : "Check back soon!"}
+                <p className="text-sm mt-2" style={{ color: MUTED }}>
+                  {searchQuery ? "Try different keywords" : "Check back soon"}
                 </p>
               </div>
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                   {browseVisible.map((course, idx) => (
-                    <PremiumCourseCard key={course.id} course={course} idx={idx} />
+                    <BlueprintCourseCard key={course.id} course={course} idx={idx} />
                   ))}
                 </div>
                 {browseHasMore && (
                   <div className="flex justify-center mt-10">
                     <Link to="/courses"
-                      className="inline-flex items-center gap-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white font-black px-8 py-3.5 rounded-xl transition shadow-lg shadow-amber-500/20 text-sm active:scale-95">
-                      See All Courses <ArrowRight size={16} />
+                      className="inline-flex items-center gap-2 text-white font-bold px-7 py-3 rounded-sm transition text-sm active:scale-95"
+                      style={{ backgroundColor: ORANGE }}>
+                      See all courses <ArrowRight size={16} />
                     </Link>
                   </div>
                 )}
@@ -523,22 +557,22 @@ const Home = () => {
           </section>
 
           {/* ── WHY CHOOSE US ── */}
-          {/* ✅ FIXED: Removed gradient background and backdrop-blur from cards */}
           <section>
             <div className="mb-12">
-              <div className="inline-flex items-center gap-2 mb-3">
-                <div className="w-2 h-2 rounded-full bg-amber-500" />
-                <span className="text-xs font-bold text-amber-600 uppercase tracking-widest">Excellence</span>
-              </div>
-              <h2 className="text-4xl font-black text-slate-900">Why LMSPRO</h2>
+              <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: ORANGE, fontFamily: MONO_FONT }}>§ 03 — Specification</p>
+              <h2 className="text-4xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>What you're getting</h2>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              <PremiumFeature icon={<TrendingUp size={24} />} title="Career-Focused"       desc="Curated by industry experts. Every course designed for real job market demand." />
-              <PremiumFeature icon={<Award size={24} />}      title="Certified Excellence"  desc="Earn recognized credentials that employers trust and value worldwide." />
-              <PremiumFeature icon={<Users size={24} />}      title="Expert Instruction"    desc="Learn from leaders actively working in their fields with decades of experience." />
-              <PremiumFeature icon={<Clock size={24} />}      title="Lifetime Access"       desc="Learn at your pace with unlimited access to all course materials forever." />
-              <PremiumFeature icon={<Globe size={24} />}      title="Global Community"      desc="Connect with 2M+ learners worldwide. Network and collaborate meaningfully." />
-              <PremiumFeature icon={<Sparkles size={24} />}   title="Premium Content"       desc="New, curated courses weekly. Content refreshed by experts monthly." />
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[
+                { icon: <TrendingUp size={20} />, title: "Built for the job market",  desc: "Courses shaped around what teams are actually hiring for right now." },
+                { icon: <Award size={20} />,      title: "Certificates that hold up",  desc: "A credential you can put on a resume or LinkedIn without hedging." },
+                { icon: <Users size={20} />,      title: "Taught by practitioners",    desc: "Instructors who do this work day to day, not full-time presenters." },
+                { icon: <Clock size={20} />,      title: "No expiry",                  desc: "Once you're in, the material is yours — go back to it whenever." },
+                { icon: <Globe size={20} />,      title: "800+ instructors",           desc: "A wide enough bench that you're not stuck with one teaching style." },
+                { icon: <Sparkles size={20} />,   title: "New material weekly",        desc: "The catalog keeps moving so it doesn't go stale under you." },
+              ].map((f, i) => (
+                <BlueprintFeature key={f.title} {...f} index={i} />
+              ))}
             </div>
           </section>
 
@@ -546,27 +580,20 @@ const Home = () => {
           {categories.length > 0 && (
             <section>
               <div className="mb-10">
-                <h2 className="text-4xl font-black text-slate-900">Explore Categories</h2>
+                <p className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: ORANGE, fontFamily: MONO_FONT }}>§ 04 — Index</p>
+                <h2 className="text-4xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>Browse by subject</h2>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-                {categories.map((cat, idx) => {
-                  const gradients = [
-                    "from-blue-600 to-blue-700",    "from-emerald-600 to-teal-700",
-                    "from-amber-600 to-orange-700", "from-violet-600 to-purple-700",
-                    "from-rose-600 to-pink-700",    "from-cyan-600 to-blue-700",
-                    "from-indigo-600 to-blue-700",  "from-fuchsia-600 to-purple-700",
-                  ];
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                {categories.map((cat) => {
                   const count = courses.filter(c => c.category?.name === cat.name && c.status === "PUBLISHED").length;
                   return (
                     <Link key={cat.id} to={`/categories/${cat.name?.toLowerCase() || ""}`}
-                      className="group relative overflow-hidden rounded-2xl p-6 text-white hover:shadow-2xl hover:-translate-y-1 transition-all duration-500 border border-white/10 h-32 flex flex-col justify-between">
-                      <div className={`absolute inset-0 bg-gradient-to-br ${gradients[idx % gradients.length]} opacity-95`} />
-                      <div className="relative z-10 flex flex-col justify-between h-full">
-                        <BookOpen size={24} className="opacity-70" />
-                        <div>
-                          <p className="font-black text-base leading-tight">{cat.name}</p>
-                          <p className="text-xs opacity-70 mt-1">{count} course{count !== 1 ? "s" : ""}</p>
-                        </div>
+                      className="group relative bg-white border rounded-sm p-5 h-28 flex flex-col justify-between transition-colors hover:border-current"
+                      style={{ borderColor: LINE, color: BLUE }}>
+                      <BookOpen size={20} style={{ color: MUTED }} className="group-hover:opacity-100" />
+                      <div>
+                        <p className="font-bold text-sm" style={{ color: INK }}>{cat.name}</p>
+                        <p className="text-xs mt-0.5" style={{ color: MUTED, fontFamily: MONO_FONT }}>{count} course{count !== 1 ? "s" : ""}</p>
                       </div>
                     </Link>
                   );
@@ -576,25 +603,29 @@ const Home = () => {
           )}
 
           {/* ── CTA ── */}
-          {/* ✅ FIXED: Replaced three-stop gradient with flat slate-900 */}
-          <section className="relative overflow-hidden rounded-3xl bg-slate-900 p-12 sm:p-16 text-white text-center shadow-2xl border border-slate-800">
+          <section className="relative overflow-hidden rounded-sm p-12 sm:p-16 text-white text-center" style={{ backgroundColor: BLUE_DEEP }}>
+            <DraftGrid dark opacity={0.05} />
+            <span className="absolute inset-4 pointer-events-none">
+              <CornerMarks color={ORANGE} size={18} />
+            </span>
             <div className="relative space-y-6">
-              <GraduationCap size={48} className="mx-auto opacity-70" />
+              <GraduationCap size={40} className="mx-auto" style={{ color: ORANGE }} />
               <div>
-                <h2 className="text-4xl sm:text-5xl font-black mb-3">Ready to Transform?</h2>
-                <p className="text-slate-300 text-lg max-w-2xl mx-auto">
-                  Join thousands of professionals elevating their careers. Start with any course, finish with confidence.
+                <h2 className="text-4xl sm:text-5xl font-black mb-3" style={{ fontFamily: DISPLAY_FONT }}>Start with one course.</h2>
+                <p className="text-white/70 text-base max-w-2xl mx-auto">
+                  You don't need a plan for the whole year — pick the thing you need right now and go.
                 </p>
               </div>
               <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
                 <Link to="/auth">
-                  <button className="bg-amber-500 hover:bg-amber-400 text-white font-black px-8 py-4 rounded-xl transition-all duration-300 shadow-lg shadow-amber-600/20 text-sm active:scale-95">
-                    Get Started Free
+                  <button className="text-white font-bold px-8 py-3.5 rounded-sm transition text-sm active:scale-95"
+                    style={{ backgroundColor: ORANGE }}>
+                    Create free account
                   </button>
                 </Link>
                 <Link to="/courses">
-                  <button className="border-2 border-slate-600 hover:border-slate-400 text-white font-bold px-8 py-4 rounded-xl hover:bg-white/5 transition text-sm flex items-center gap-2 justify-center">
-                    Browse Catalog <ArrowRight size={16} />
+                  <button className="border-2 border-white/25 hover:border-white/50 text-white font-bold px-8 py-3.5 rounded-sm transition text-sm flex items-center gap-2 justify-center">
+                    Browse catalog <ArrowRight size={16} />
                   </button>
                 </Link>
               </div>

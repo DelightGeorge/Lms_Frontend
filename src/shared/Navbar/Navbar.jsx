@@ -9,6 +9,16 @@ import { NavLink, Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../Context/AuthContext";
 import API from "../../services/api";
 
+const INK    = "#22262B";
+const BLUE   = "#1B3A5C";
+const PAPER  = "#EEF1F3";
+const LINE   = "#D8DEE3";
+const MUTED  = "#5B6570";
+const ORANGE = "#D65A2E";
+const MOSS   = "#4C7A5C";
+const DISPLAY_FONT = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
+const MONO_FONT    = "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace";
+
 const Navbar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -42,10 +52,10 @@ const Navbar = () => {
   ];
 
   const categories = [
-    { name: "Development", emoji: "💻" },
-    { name: "Business",    emoji: "📈" },
-    { name: "Design",      emoji: "🎨" },
-    { name: "Marketing",   emoji: "📣" },
+    { name: "Development" },
+    { name: "Business"    },
+    { name: "Design"      },
+    { name: "Marketing"   },
   ];
 
   // ── Scroll ────────────────────────────────────────────────
@@ -185,16 +195,16 @@ const Navbar = () => {
   };
 
   // ── Role helpers ──────────────────────────────────────────
-  const roleBadge = {
-    ADMIN:      "bg-red-100 text-red-600 border border-red-200",
-    INSTRUCTOR: "bg-blue-100 text-blue-600 border border-blue-200",
-    STUDENT:    "bg-emerald-100 text-emerald-600 border border-emerald-200",
-  }[user?.role] || "bg-slate-100 text-slate-500";
+  const roleBadgeStyle = {
+    ADMIN:      { color: "#B23A2E", borderColor: "#E7C6C0", backgroundColor: "#FBF0EE" },
+    INSTRUCTOR: { color: BLUE,      borderColor: LINE,      backgroundColor: PAPER     },
+    STUDENT:    { color: MOSS,      borderColor: "#D6E3D9", backgroundColor: "#F0F5F1" },
+  }[user?.role] || { color: MUTED, borderColor: LINE, backgroundColor: PAPER };
 
   const dashboardLink = {
-    ADMIN:      { to: "/admindashboard",      icon: <ShieldCheck size={14} />,     label: "Admin Panel", color: "text-red-600 hover:bg-red-50"     },
-    INSTRUCTOR: { to: "/instructordashboard", icon: <LayoutDashboard size={14} />, label: "Dashboard",   color: "text-slate-700 hover:bg-slate-100" },
-    STUDENT:    { to: "/StudentDashboard",    icon: <GraduationCap size={14} />,   label: "My Learning", color: "text-slate-700 hover:bg-slate-100" },
+    ADMIN:      { to: "/admindashboard",      icon: <ShieldCheck size={14} />,     label: "Admin Panel" },
+    INSTRUCTOR: { to: "/instructordashboard", icon: <LayoutDashboard size={14} />, label: "Dashboard"   },
+    STUDENT:    { to: "/StudentDashboard",    icon: <GraduationCap size={14} />,   label: "My Learning" },
   }[user?.role];
 
   const getDropdownLinks = () => {
@@ -213,9 +223,10 @@ const Navbar = () => {
     const dim = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
     return user?.avatarUrl ? (
       <img src={user.avatarUrl} alt={user.fullName}
-        className={`${dim} rounded-full object-cover ring-2 ring-blue-500 ring-offset-1`} />
+        className={`${dim} rounded-sm object-cover ring-1`} style={{ "--tw-ring-color": BLUE }} />
     ) : (
-      <div className={`${dim} rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-white flex items-center justify-center font-black shadow-md shrink-0`}>
+      <div className={`${dim} rounded-sm text-white flex items-center justify-center font-black shrink-0`}
+        style={{ backgroundColor: BLUE, fontFamily: DISPLAY_FONT }}>
         {user?.fullName?.charAt(0).toUpperCase()}
       </div>
     );
@@ -223,72 +234,66 @@ const Navbar = () => {
 
   const NotifIcon = ({ mobile = false }) => (
     <Link to="/notifications"
-      className={`relative flex items-center gap-2 transition
+      className={`relative flex items-center gap-2 transition-colors
         ${mobile
-          ? "py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50"
-          : "p-2.5 rounded-xl hover:bg-slate-100 text-slate-500 hover:text-blue-600"
-        }`}>
+          ? "py-2.5 px-3 rounded-sm text-sm font-semibold hover:bg-slate-50"
+          : "p-2.5 rounded-sm hover:bg-slate-100"
+        }`}
+      style={{ color: mobile ? INK : MUTED }}>
       <Bell size={mobile ? 16 : 19} />
       {notifCount > 0 && (
-        <span className={`bg-red-500 text-white text-[9px] font-black rounded-full flex items-center justify-center
-          ${mobile ? "w-4 h-4" : "absolute -top-0.5 -right-0.5 w-4 h-4"}`}>
+        <span className={`text-white text-[9px] font-black rounded-full flex items-center justify-center
+          ${mobile ? "w-4 h-4" : "absolute -top-0.5 -right-0.5 w-4 h-4"}`}
+          style={{ backgroundColor: ORANGE }}>
           {notifCount > 9 ? "9+" : notifCount}
         </span>
       )}
       {mobile && (
         <span>
           Notifications
-          {notifCount > 0 && <span className="text-red-500 ml-1">({notifCount})</span>}
+          {notifCount > 0 && <span className="ml-1" style={{ color: ORANGE }}>({notifCount})</span>}
         </span>
       )}
     </Link>
   );
 
   // ── Mobile search results — normal flow, not absolute ───────
-  // Rendered in the document flow so no parent overflow clips it
   const MobileSearchResults = ({ onResultClick }) => (
     <div
-      className="mt-2 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden"
-      style={{ maxHeight: "60vh", overflowY: "auto" }}
+      className="mt-2 bg-white rounded-sm shadow-xl border overflow-hidden"
+      style={{ maxHeight: "60vh", overflowY: "auto", borderColor: LINE }}
     >
       {searchLoading ? (
         <div className="flex flex-col items-center justify-center py-8 gap-3">
-          <div className="relative w-9 h-9">
-            <div className="absolute inset-0 rounded-full border-2 border-blue-100" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
-            <Search size={12} className="absolute inset-0 m-auto text-blue-400" />
-          </div>
-          <p className="text-xs text-slate-400">Finding results…</p>
+          <Loader2 size={20} className="animate-spin" style={{ color: BLUE }} />
+          <p className="text-xs" style={{ color: MUTED }}>Searching…</p>
         </div>
       ) : (
         <>
           {searchResults.courses.length > 0 && (
             <div>
               <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-                <BookOpen size={11} className="text-blue-500" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
-                <span className="ml-auto text-[10px] text-slate-300">{searchResults.courses.length} found</span>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Courses</p>
+                <span className="ml-auto text-[10px]" style={{ color: MUTED }}>{searchResults.courses.length} found</span>
               </div>
               {searchResults.courses.map((course) => (
                 <Link key={course.id} to={`/courses/${course.id}`} onClick={onResultClick}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-blue-50 transition border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl">
-                  <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0">
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition mx-1">
+                  <div className="w-12 h-9 rounded-sm overflow-hidden bg-slate-100 shrink-0">
                     {course.thumbnail
                       ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-blue-50">
-                          <BookOpen size={14} className="text-slate-400" />
+                      : <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen size={14} style={{ color: LINE }} />
                         </div>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate leading-tight">{course.title}</p>
+                    <p className="text-sm font-bold truncate leading-tight" style={{ color: INK }}>{course.title}</p>
                     {course.instructor?.fullName && (
-                      <p className="text-[10px] text-slate-400 truncate mt-0.5">{course.instructor.fullName}</p>
+                      <p className="text-[10px] truncate mt-0.5" style={{ color: MUTED }}>{course.instructor.fullName}</p>
                     )}
                   </div>
-                  <span className={`text-[10px] font-black shrink-0 px-2 py-0.5 rounded-lg ${
-                    course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-700"
-                  }`}>
-                    {course.price === 0 ? "Free" : `$${course.price}`}
+                  <span className="text-[10px] font-black shrink-0" style={{ fontFamily: MONO_FONT, color: course.price === 0 ? MOSS : INK }}>
+                    {course.price === 0 ? "FREE" : `$${course.price}`}
                   </span>
                 </Link>
               ))}
@@ -296,24 +301,23 @@ const Navbar = () => {
           )}
 
           {searchResults.instructors.length > 0 && (
-            <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+            <div className={searchResults.courses.length > 0 ? "border-t mt-1 pt-1" : ""} style={{ borderColor: LINE }}>
               <div className="flex items-center gap-2 px-4 pt-2 pb-1">
-                <Users size={11} className="text-indigo-500" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Instructors</p>
               </div>
               {searchResults.instructors.map((inst) => (
                 <Link key={inst.id} to={`/instructors/${inst.id}`} onClick={onResultClick}
-                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-indigo-50 transition border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl">
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm">
+                  className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 active:bg-slate-100 transition mx-1">
+                  <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 text-white font-black text-sm" style={{ backgroundColor: BLUE }}>
                     {inst.avatarUrl
                       ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
                       : inst.fullName?.[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate">{inst.fullName}</p>
-                    {inst.expertise && <p className="text-[10px] text-slate-400 truncate mt-0.5">{inst.expertise}</p>}
+                    <p className="text-sm font-bold truncate" style={{ color: INK }}>{inst.fullName}</p>
+                    {inst.expertise && <p className="text-[10px] truncate mt-0.5" style={{ color: MUTED }}>{inst.expertise}</p>}
                   </div>
-                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0">View</span>
+                  <span className="text-[10px] font-bold shrink-0" style={{ color: BLUE }}>View</span>
                 </Link>
               ))}
             </div>
@@ -321,22 +325,22 @@ const Navbar = () => {
 
           {searchResults.courses.length === 0 && searchResults.instructors.length === 0 && searchQuery.trim() && (
             <div className="text-center py-8">
-              <Search size={22} className="text-slate-200 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-400">No results for "{searchQuery}"</p>
-              <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+              <Search size={20} className="mx-auto mb-2" style={{ color: LINE }} />
+              <p className="text-sm font-bold" style={{ color: MUTED }}>No results for "{searchQuery}"</p>
+              <p className="text-xs mt-1" style={{ color: MUTED }}>Try a different keyword</p>
             </div>
           )}
 
           {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
-            <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+            <div className="border-t p-2" style={{ borderColor: LINE, backgroundColor: PAPER }}>
               <div className="flex gap-1">
                 <Link to={`/courses?search=${encodeURIComponent(searchQuery)}`} onClick={onResultClick}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 hover:bg-blue-50 active:bg-blue-100 rounded-xl transition">
-                  <BookOpen size={11} /> All courses
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold hover:bg-white active:bg-white rounded-sm transition" style={{ color: BLUE }}>
+                  All courses
                 </Link>
                 <Link to={`/instructors?search=${encodeURIComponent(searchQuery)}`} onClick={onResultClick}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-indigo-600 hover:bg-indigo-50 active:bg-indigo-100 rounded-xl transition">
-                  <Users size={11} /> All instructors
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold hover:bg-white active:bg-white rounded-sm transition" style={{ color: BLUE }}>
+                  All instructors
                 </Link>
               </div>
             </div>
@@ -352,17 +356,13 @@ const Navbar = () => {
       onMouseEnter={() => { mouseInsideDropdown.current = true;  }}
       onMouseLeave={() => { mouseInsideDropdown.current = false; }}
       onMouseDown={(e) => e.preventDefault()} // prevent input blur
-      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[999] overflow-hidden"
-      style={{ maxHeight: "520px", overflowY: "auto" }}
+      className="absolute top-full left-0 right-0 mt-2 bg-white rounded-sm shadow-2xl border z-[999] overflow-hidden"
+      style={{ maxHeight: "520px", overflowY: "auto", borderColor: LINE }}
     >
       {searchLoading ? (
         <div className="flex flex-col items-center justify-center py-10 gap-3">
-          <div className="relative w-10 h-10">
-            <div className="absolute inset-0 rounded-full border-2 border-blue-100" />
-            <div className="absolute inset-0 rounded-full border-2 border-t-blue-500 animate-spin" />
-            <Search size={14} className="absolute inset-0 m-auto text-blue-400" />
-          </div>
-          <p className="text-xs text-slate-400 font-medium">Finding results…</p>
+          <Loader2 size={22} className="animate-spin" style={{ color: BLUE }} />
+          <p className="text-xs font-medium" style={{ color: MUTED }}>Searching…</p>
         </div>
       ) : (
         <>
@@ -370,43 +370,40 @@ const Navbar = () => {
           {searchResults.courses.length > 0 && (
             <div>
               <div className="flex items-center gap-2 px-4 pt-3 pb-1">
-                <BookOpen size={11} className="text-blue-500" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Courses</p>
-                <span className="ml-auto text-[10px] text-slate-300">{searchResults.courses.length} found</span>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Courses</p>
+                <span className="ml-auto text-[10px]" style={{ color: MUTED }}>{searchResults.courses.length} found</span>
               </div>
               {searchResults.courses.map((course) => (
                 <Link
                   key={course.id}
                   to={`/courses/${course.id}`}
                   onClick={onResultClick}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-blue-500 mx-1 rounded-r-xl"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group mx-1"
                 >
-                  <div className="w-12 h-9 rounded-lg overflow-hidden bg-slate-100 shrink-0 shadow-sm">
+                  <div className="w-12 h-9 rounded-sm overflow-hidden bg-slate-100 shrink-0">
                     {course.thumbnail
                       ? <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-                      : <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-50 to-slate-100">
-                          <BookOpen size={14} className="text-slate-400" />
+                      : <div className="w-full h-full flex items-center justify-center">
+                          <BookOpen size={14} style={{ color: LINE }} />
                         </div>}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate group-hover:text-blue-700 transition-colors leading-tight">
+                    <p className="text-sm font-bold truncate leading-tight" style={{ color: INK }}>
                       {course.title}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {course.instructor?.fullName && (
-                        <span className="text-[10px] text-slate-400 truncate">{course.instructor.fullName}</span>
+                        <span className="text-[10px] truncate" style={{ color: MUTED }}>{course.instructor.fullName}</span>
                       )}
                       {course._count?.enrollments > 0 && (
-                        <span className="text-[10px] text-slate-300 flex items-center gap-0.5 shrink-0">
+                        <span className="text-[10px] flex items-center gap-0.5 shrink-0" style={{ color: MUTED }}>
                           <Users size={8} /> {course._count.enrollments}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className={`text-[11px] font-black shrink-0 px-2 py-0.5 rounded-lg ${
-                    course.price === 0 ? "bg-emerald-50 text-emerald-600" : "bg-slate-100 text-slate-700"
-                  }`}>
-                    {course.price === 0 ? "Free" : `$${course.price}`}
+                  <span className="text-[11px] font-black shrink-0" style={{ fontFamily: MONO_FONT, color: course.price === 0 ? MOSS : INK }}>
+                    {course.price === 0 ? "FREE" : `$${course.price}`}
                   </span>
                 </Link>
               ))}
@@ -415,40 +412,39 @@ const Navbar = () => {
 
           {/* ── Instructors ── */}
           {searchResults.instructors.length > 0 && (
-            <div className={searchResults.courses.length > 0 ? "border-t border-slate-100 mt-1 pt-1" : ""}>
+            <div className={searchResults.courses.length > 0 ? "border-t mt-1 pt-1" : ""} style={{ borderColor: LINE }}>
               <div className="flex items-center gap-2 px-4 pt-2 pb-1">
-                <Users size={11} className="text-indigo-500" />
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Instructors</p>
-                <span className="ml-auto text-[10px] text-slate-300">{searchResults.instructors.length} found</span>
+                <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: MUTED, fontFamily: MONO_FONT }}>Instructors</p>
+                <span className="ml-auto text-[10px]" style={{ color: MUTED }}>{searchResults.instructors.length} found</span>
               </div>
               {searchResults.instructors.map((inst) => (
                 <Link
                   key={inst.id}
                   to={`/instructors/${inst.id}`}
                   onClick={onResultClick}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group border-l-2 border-transparent hover:border-indigo-500 mx-1 rounded-r-xl"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition group mx-1"
                 >
-                  <div className="w-9 h-9 rounded-full overflow-hidden bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shrink-0 text-white font-black text-sm ring-2 ring-white shadow-sm">
+                  <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center shrink-0 text-white font-black text-sm" style={{ backgroundColor: BLUE }}>
                     {inst.avatarUrl
                       ? <img src={inst.avatarUrl} alt="" className="w-full h-full object-cover" />
                       : inst.fullName?.[0]}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-800 truncate group-hover:text-indigo-700 transition-colors">
+                    <p className="text-sm font-bold truncate transition-colors" style={{ color: INK }}>
                       {inst.fullName}
                     </p>
                     <div className="flex items-center gap-2 mt-0.5">
                       {inst.expertise && (
-                        <span className="text-[10px] text-slate-400 truncate">{inst.expertise}</span>
+                        <span className="text-[10px] truncate" style={{ color: MUTED }}>{inst.expertise}</span>
                       )}
                       {inst._count?.courses > 0 && (
-                        <span className="text-[10px] text-indigo-400 font-bold shrink-0 flex items-center gap-0.5">
+                        <span className="text-[10px] font-bold shrink-0 flex items-center gap-0.5" style={{ color: BLUE }}>
                           <BookOpen size={8} /> {inst._count.courses} course{inst._count.courses !== 1 ? "s" : ""}
                         </span>
                       )}
                     </div>
                   </div>
-                  <span className="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-2 py-0.5 rounded-lg shrink-0 group-hover:bg-indigo-100 transition">
+                  <span className="text-[10px] font-bold shrink-0" style={{ color: BLUE }}>
                     View
                   </span>
                 </Link>
@@ -459,29 +455,31 @@ const Navbar = () => {
           {/* ── No results ── */}
           {!searchLoading && searchResults.courses.length === 0 && searchResults.instructors.length === 0 && searchQuery.trim() && (
             <div className="text-center py-10">
-              <Search size={24} className="text-slate-200 mx-auto mb-2" />
-              <p className="text-sm font-bold text-slate-400">No results for "{searchQuery}"</p>
-              <p className="text-xs text-slate-300 mt-1">Try a different keyword</p>
+              <Search size={22} className="mx-auto mb-2" style={{ color: LINE }} />
+              <p className="text-sm font-bold" style={{ color: MUTED }}>No results for "{searchQuery}"</p>
+              <p className="text-xs mt-1" style={{ color: MUTED }}>Try a different keyword</p>
             </div>
           )}
 
           {/* ── Footer links ── */}
           {(searchResults.courses.length > 0 || searchResults.instructors.length > 0) && (
-            <div className="border-t border-slate-100 p-2 bg-slate-50/50">
+            <div className="border-t p-2" style={{ borderColor: LINE, backgroundColor: PAPER }}>
               <div className="flex gap-1">
                 <Link
                   to={`/courses?search=${encodeURIComponent(searchQuery)}`}
                   onClick={onResultClick}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-blue-600 hover:bg-blue-50 rounded-xl transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold hover:bg-white rounded-sm transition"
+                  style={{ color: BLUE }}
                 >
-                  <BookOpen size={11} /> All courses
+                  All courses
                 </Link>
                 <Link
                   to={`/instructors?search=${encodeURIComponent(searchQuery)}`}
                   onClick={onResultClick}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-indigo-600 hover:bg-indigo-50 rounded-xl transition"
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-bold hover:bg-white rounded-sm transition"
+                  style={{ color: BLUE }}
                 >
-                  <Users size={11} /> All instructors
+                  All instructors
                 </Link>
               </div>
             </div>
@@ -496,20 +494,18 @@ const Navbar = () => {
   return (
     <>
       {/* ── Top nav ───────────────────────────────────────────── */}
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled
-          ? "bg-white/96 backdrop-blur-xl shadow-lg shadow-black/5 py-2"
-          : "bg-white border-b border-slate-100/80 py-3"
-      }`}>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white ${
+        isScrolled ? "shadow-md py-2" : "border-b py-3"
+      }`} style={{ borderColor: isScrolled ? "transparent" : LINE }}>
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 flex items-center justify-between gap-3">
 
           {/* Logo */}
-          <Link to="/" className="group flex items-center gap-2 shrink-0">
-            <div className="w-9 h-9 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-lg group-hover:rotate-12 transition-transform duration-300 shadow-md shadow-blue-600/30">
+          <Link to="/" className="flex items-center gap-2 shrink-0">
+            <div className="w-9 h-9 rounded-sm flex items-center justify-center text-white font-black text-lg" style={{ backgroundColor: BLUE, fontFamily: DISPLAY_FONT }}>
               L
             </div>
-            <span className="text-lg font-black tracking-tight text-slate-900 hidden sm:block">
-              MS<span className="text-blue-600 italic">PRO</span>
+            <span className="text-lg font-black tracking-tight hidden sm:block" style={{ color: INK, fontFamily: DISPLAY_FONT }}>
+              MS<span style={{ color: ORANGE }}>PRO</span>
             </span>
           </Link>
 
@@ -518,21 +514,23 @@ const Navbar = () => {
 
             {/* Browse dropdown */}
             <div className="relative group shrink-0">
-              <button className="flex items-center gap-1.5 text-sm font-semibold text-slate-600 hover:text-blue-600 py-2 px-2 rounded-lg hover:bg-slate-50 transition">
+              <button className="flex items-center gap-1.5 text-sm font-semibold py-2 px-2 rounded-sm hover:bg-slate-50 transition-colors" style={{ color: MUTED }}>
                 Browse
                 <ChevronDown size={13} className="group-hover:rotate-180 transition-transform duration-200" />
               </button>
-              <div className="absolute top-full left-0 w-52 bg-white shadow-2xl rounded-2xl border border-slate-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 p-2 mt-2 z-50">
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest px-2.5 pt-1 pb-2">Categories</p>
+              <div className="absolute top-full left-0 w-52 bg-white shadow-2xl rounded-sm border opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 translate-y-1 group-hover:translate-y-0 p-2 mt-2 z-50" style={{ borderColor: LINE }}>
+                <p className="text-[10px] font-bold uppercase tracking-widest px-2.5 pt-1 pb-2" style={{ color: MUTED, fontFamily: MONO_FONT }}>Categories</p>
                 {categories.map((cat) => (
                   <NavLink key={cat.name} to={`/categories/${cat.name.toLowerCase()}`}
-                    className="flex items-center gap-2.5 px-2.5 py-2 text-sm text-slate-600 hover:bg-blue-50 hover:text-blue-700 rounded-xl font-medium transition">
-                    <span>{cat.emoji}</span> {cat.name}
+                    className="flex items-center gap-2.5 px-2.5 py-2 text-sm rounded-sm font-medium transition-colors hover:bg-slate-50"
+                    style={{ color: INK }}>
+                    {cat.name}
                   </NavLink>
                 ))}
-                <div className="border-t border-slate-100 mt-1.5 pt-1.5">
+                <div className="border-t mt-1.5 pt-1.5" style={{ borderColor: LINE }}>
                   <NavLink to="/courses"
-                    className="flex items-center gap-2 px-2.5 py-2 text-sm text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition">
+                    className="flex items-center gap-2 px-2.5 py-2 text-sm font-bold rounded-sm hover:bg-slate-50 transition-colors"
+                    style={{ color: ORANGE }}>
                     <Zap size={13} /> All Courses
                   </NavLink>
                 </div>
@@ -543,8 +541,8 @@ const Navbar = () => {
             <div ref={searchRef} className="relative flex-1">
               <form onSubmit={handleSearch}>
                 {searchLoading
-                  ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 pointer-events-none z-10 animate-spin" size={15} />
-                  : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none z-10" size={15} />
+                  ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10 animate-spin" size={15} style={{ color: BLUE }} />
+                  : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none z-10" size={15} style={{ color: MUTED }} />
                 }
                 <input
                   value={searchQuery}
@@ -555,7 +553,6 @@ const Navbar = () => {
                   }}
                   onBlur={() => {
                     // Delay long enough for mousedown on dropdown to register first
-                    // mouseInsideDropdown prevents closing when clicking results
                     setTimeout(() => {
                       if (!mouseInsideDropdown.current) {
                         setSearchFocused(false);
@@ -564,15 +561,14 @@ const Navbar = () => {
                     }, 200);
                   }}
                   placeholder={placeholders[placeholderIdx]}
-                  className={`w-full rounded-xl py-2.5 pl-9 pr-8 text-sm outline-none transition-all
-                    ${searchFocused
-                      ? "bg-white ring-2 ring-blue-500 shadow-sm"
-                      : "bg-slate-100 hover:bg-slate-200/70"
-                    }`}
+                  className="w-full rounded-sm py-2.5 pl-9 pr-8 text-sm outline-none transition-all border"
+                  style={searchFocused
+                    ? { backgroundColor: "#fff", borderColor: BLUE, boxShadow: `0 0 0 1px ${BLUE}` }
+                    : { backgroundColor: PAPER, borderColor: "transparent" }}
                 />
                 {searchQuery && (
                   <button type="button" onClick={clearSearch}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition z-10">
+                    className="absolute right-3 top-1/2 -translate-y-1/2 transition z-10" style={{ color: MUTED }}>
                     <X size={13} />
                   </button>
                 )}
@@ -581,10 +577,10 @@ const Navbar = () => {
               {/* Focus hint — shown when focused with empty input */}
               {!searchQuery && !hasResults && searchFocused && (
                 <div className="absolute top-full left-0 mt-2 z-[999]">
-                  <div className="flex items-center gap-2 bg-white border border-slate-200 shadow-lg rounded-2xl px-3 py-2 text-xs text-slate-500 whitespace-nowrap">
-                    <Search size={11} className="text-slate-400 shrink-0" />
-                    <span>Search <span className="font-bold text-slate-700">courses</span> or find an <span className="font-bold text-slate-700">instructor</span> by name</span>
-                    <span className="ml-auto bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded font-mono text-[10px]">↵</span>
+                  <div className="flex items-center gap-2 bg-white border shadow-lg rounded-sm px-3 py-2 text-xs whitespace-nowrap" style={{ borderColor: LINE, color: MUTED }}>
+                    <Search size={11} className="shrink-0" style={{ color: MUTED }} />
+                    <span>Search <span className="font-bold" style={{ color: INK }}>courses</span> or find an <span className="font-bold" style={{ color: INK }}>instructor</span></span>
+                    <span className="ml-auto px-1.5 py-0.5 rounded font-mono text-[10px]" style={{ backgroundColor: PAPER, color: MUTED }}>↵</span>
                   </div>
                 </div>
               )}
@@ -600,13 +596,14 @@ const Navbar = () => {
           <div className="hidden lg:flex items-center gap-0.5">
             {user ? (
               <>
-                <span className="text-sm text-slate-400 mr-2 hidden xl:block">
-                  Hi, <span className="font-bold text-slate-800">{user.fullName?.split(" ")[0]}</span> 👋
+                <span className="text-sm mr-2 hidden xl:block" style={{ color: MUTED }}>
+                  Hi, <span className="font-bold" style={{ color: INK }}>{user.fullName?.split(" ")[0]}</span>
                 </span>
 
                 {dashboardLink && (
                   <NavLink to={dashboardLink.to}
-                    className={`flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-xl transition mr-1 ${dashboardLink.color}`}>
+                    className="flex items-center gap-1.5 text-sm font-semibold px-3 py-2 rounded-sm transition-colors mr-1 hover:bg-slate-50"
+                    style={{ color: INK }}>
                     {dashboardLink.icon}
                     <span className="hidden xl:inline">{dashboardLink.label}</span>
                   </NavLink>
@@ -616,44 +613,46 @@ const Navbar = () => {
 
                 <div id="profile-menu" className="relative ml-1">
                   <button onClick={() => setProfileOpen(!profileOpen)}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl hover:bg-slate-100 transition">
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-sm hover:bg-slate-50 transition-colors">
                     <Avatar />
                     <div className="hidden xl:block text-left">
-                      <p className="text-xs font-black text-slate-800 leading-none mb-0.5 max-w-[90px] truncate">
+                      <p className="text-xs font-black leading-none mb-1 max-w-[90px] truncate" style={{ color: INK }}>
                         {user.fullName?.split(" ")[0]}
                       </p>
-                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${roleBadge}`}>
+                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded-sm border" style={roleBadgeStyle}>
                         {user.role}
                       </span>
                     </div>
-                    <ChevronDown size={13} className={`text-slate-400 transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown size={13} className={`transition-transform duration-200 ${profileOpen ? "rotate-180" : ""}`} style={{ color: MUTED }} />
                   </button>
 
                   {profileOpen && (
-                    <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-2xl shadow-2xl border border-slate-100 p-2 z-50">
-                      <div className="px-3 py-3 mb-1.5 bg-gradient-to-br from-slate-50 to-blue-50/40 rounded-xl border border-slate-100">
+                    <div className="absolute right-0 top-full mt-2 w-60 bg-white rounded-sm shadow-2xl border p-2 z-50" style={{ borderColor: LINE }}>
+                      <div className="px-3 py-3 mb-1.5 rounded-sm border" style={{ backgroundColor: PAPER, borderColor: LINE }}>
                         <div className="flex items-center gap-3">
                           <Avatar size="sm" />
                           <div className="min-w-0 flex-1">
-                            <p className="font-black text-sm text-slate-900 truncate">{user.fullName}</p>
-                            <p className="text-[10px] text-slate-400 truncate">{user.email}</p>
+                            <p className="font-black text-sm truncate" style={{ color: INK }}>{user.fullName}</p>
+                            <p className="text-[10px] truncate" style={{ color: MUTED }}>{user.email}</p>
                           </div>
                         </div>
-                        <span className={`text-[9px] font-black px-2 py-0.5 rounded-full mt-2.5 inline-block ${roleBadge}`}>
+                        <span className="text-[9px] font-black px-2 py-0.5 rounded-sm border mt-2.5 inline-block" style={roleBadgeStyle}>
                           {user.role}
                         </span>
                       </div>
                       <div className="space-y-0.5">
                         {getDropdownLinks().map(({ to, icon, label }) => (
                           <NavLink key={to} to={to} onClick={() => setProfileOpen(false)}
-                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 rounded-xl transition font-medium">
-                            <span className="text-slate-400">{icon}</span> {label}
+                            className="flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-sm transition-colors font-medium hover:bg-slate-50"
+                            style={{ color: INK }}>
+                            <span style={{ color: MUTED }}>{icon}</span> {label}
                           </NavLink>
                         ))}
                       </div>
-                      <div className="border-t border-slate-100 mt-1.5 pt-1.5">
+                      <div className="border-t mt-1.5 pt-1.5" style={{ borderColor: LINE }}>
                         <button onClick={handleLogout}
-                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-500 hover:bg-red-50 rounded-xl transition font-semibold">
+                          className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm rounded-sm transition-colors font-semibold hover:bg-red-50"
+                          style={{ color: "#B23A2E" }}>
                           <LogOut size={15} /> Sign Out
                         </button>
                       </div>
@@ -664,15 +663,16 @@ const Navbar = () => {
             ) : (
               <>
                 <Link to="/courses"
-                  className="text-sm font-semibold text-slate-600 hover:text-blue-600 px-3 py-2 rounded-xl hover:bg-slate-100 transition">
+                  className="text-sm font-semibold px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors" style={{ color: MUTED }}>
                   Explore
                 </Link>
                 <NavLink to="/auth"
-                  className="text-sm font-bold px-3 py-2 rounded-xl hover:bg-slate-100 transition text-slate-700">
+                  className="text-sm font-bold px-3 py-2 rounded-sm hover:bg-slate-50 transition-colors" style={{ color: INK }}>
                   Log in
                 </NavLink>
                 <NavLink to="/auth"
-                  className="px-4 py-2 bg-slate-900 hover:bg-blue-600 text-white rounded-xl font-bold text-sm transition shadow-md ml-1">
+                  className="px-4 py-2 text-white rounded-sm font-bold text-sm transition-colors ml-1"
+                  style={{ backgroundColor: BLUE }}>
                   Join Free
                 </NavLink>
               </>
@@ -682,11 +682,11 @@ const Navbar = () => {
           {/* Mobile: icons */}
           <div className="flex lg:hidden items-center gap-0.5">
             <button onClick={() => { setSearchOpen(!searchOpen); if (searchOpen) clearSearch(); }}
-              className="p-2.5 rounded-xl hover:bg-slate-100 transition text-slate-500">
+              className="p-2.5 rounded-sm hover:bg-slate-50 transition-colors" style={{ color: MUTED }}>
               {searchOpen ? <X size={19} /> : <Search size={19} />}
             </button>
             {user && <NotifIcon />}
-            <button className="p-2.5 rounded-xl text-slate-600 hover:bg-slate-100 transition ml-0.5"
+            <button className="p-2.5 rounded-sm hover:bg-slate-50 transition-colors ml-0.5" style={{ color: INK }}
               onClick={() => setMobileOpen(!mobileOpen)}>
               {mobileOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -694,15 +694,14 @@ const Navbar = () => {
         </div>
 
         {/* Mobile search bar */}
-        {/* NOTE: no overflow-hidden here — that would clip the results dropdown */}
         <div className={`lg:hidden transition-all duration-300 ${
           searchOpen ? "opacity-100" : "opacity-0 pointer-events-none h-0 overflow-hidden"
         }`}>
-          <div className="px-4 pb-3 pt-2 border-t border-slate-100" ref={mobileSearchRef}>
+          <div className="px-4 pb-3 pt-2 border-t" style={{ borderColor: LINE }} ref={mobileSearchRef}>
             <form onSubmit={handleSearch} className="relative">
               {searchLoading
-                ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-400 animate-spin z-10" size={15} />
-                : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 z-10" size={15} />
+                ? <Loader2 className="absolute left-3.5 top-1/2 -translate-y-1/2 animate-spin z-10" size={15} style={{ color: BLUE }} />
+                : <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 z-10" size={15} style={{ color: MUTED }} />
               }
               <input
                 autoFocus={searchOpen}
@@ -710,11 +709,12 @@ const Navbar = () => {
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onFocus={() => { if (searchQuery.trim()) setShowDropdown(true); }}
                 placeholder="Search courses, instructors..."
-                className="w-full bg-slate-100 rounded-xl py-3 pl-9 pr-8 text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="w-full rounded-sm py-3 pl-9 pr-8 text-sm outline-none transition-all border focus:bg-white"
+                style={{ backgroundColor: PAPER, borderColor: "transparent" }}
               />
               {searchQuery && (
                 <button type="button" onClick={clearSearch}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition z-10">
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition z-10" style={{ color: MUTED }}>
                   <X size={13} />
                 </button>
               )}
@@ -730,7 +730,7 @@ const Navbar = () => {
 
       {/* Mobile overlay */}
       <div onClick={() => setMobileOpen(false)}
-        className={`fixed inset-0 bg-black/50 backdrop-blur-sm z-[55] transition-opacity duration-300 lg:hidden ${
+        className={`fixed inset-0 bg-black/40 z-[55] transition-opacity duration-300 lg:hidden ${
           mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         }`} />
 
@@ -742,25 +742,25 @@ const Navbar = () => {
         {/* User banner / guest CTA */}
         <div className="px-4 pt-4 pb-3">
           {user ? (
-            <div className="flex items-center gap-3 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 text-white shadow-lg shadow-blue-600/20">
+            <div className="flex items-center gap-3 rounded-sm p-4 text-white" style={{ backgroundColor: BLUE }}>
               <Avatar />
               <div className="min-w-0 flex-1">
                 <p className="font-black text-sm truncate">{user.fullName}</p>
-                <p className="text-blue-200 text-xs truncate">{user.email}</p>
+                <p className="text-xs truncate text-white/70">{user.email}</p>
               </div>
-              <span className="text-[9px] font-black bg-white/20 text-white px-2 py-1 rounded-full border border-white/30 shrink-0">
+              <span className="text-[9px] font-black bg-white/15 text-white px-2 py-1 rounded-sm border border-white/25 shrink-0">
                 {user.role}
               </span>
             </div>
           ) : (
-            <div className="bg-gradient-to-r from-slate-900 to-blue-900 rounded-2xl p-5 text-white shadow-lg">
-              <p className="font-black text-base mb-0.5">Start Learning Today</p>
-              <p className="text-slate-300 text-xs mb-4">Join thousands of students on LMSPRO</p>
+            <div className="rounded-sm p-5 text-white" style={{ backgroundColor: "#12283D" }}>
+              <p className="font-black text-base mb-0.5">Start learning today</p>
+              <p className="text-white/60 text-xs mb-4">Join a course, work through it at your pace.</p>
               <div className="flex gap-2">
-                <NavLink to="/auth" className="flex-1 text-center py-2.5 rounded-xl font-black bg-blue-600 hover:bg-blue-500 text-white text-sm transition">
+                <NavLink to="/auth" className="flex-1 text-center py-2.5 rounded-sm font-black text-white text-sm transition-colors" style={{ backgroundColor: ORANGE }}>
                   Join Free
                 </NavLink>
-                <NavLink to="/auth" className="flex-1 text-center py-2.5 rounded-xl font-bold bg-white/10 hover:bg-white/20 text-white text-sm border border-white/20 transition">
+                <NavLink to="/auth" className="flex-1 text-center py-2.5 rounded-sm font-bold bg-white/10 hover:bg-white/20 text-white text-sm border border-white/20 transition-colors">
                   Log in
                 </NavLink>
               </div>
@@ -773,15 +773,16 @@ const Navbar = () => {
           <div className="px-4 pb-3">
             <div className="grid grid-cols-3 gap-2">
               {[
-                { icon: <Flame size={15} className="text-orange-500" />,     label: "Streak",     sub: "keep going" },
-                { icon: <Star  size={15} className="text-amber-500"  />,     label: "My Courses", sub: "enrolled"   },
-                { icon: <TrendingUp size={15} className="text-blue-500" />,  label: "Progress",   sub: "track it"   },
+                { icon: <Flame size={15} style={{ color: ORANGE }} />, label: "Streak",     sub: "keep going" },
+                { icon: <Star  size={15} style={{ color: BLUE }}   />, label: "My Courses", sub: "enrolled"   },
+                { icon: <TrendingUp size={15} style={{ color: MOSS }} />, label: "Progress", sub: "track it"   },
               ].map((s) => (
                 <Link key={s.label} to="/StudentDashboard"
-                  className="bg-slate-50 hover:bg-blue-50 active:scale-95 rounded-xl p-3 text-center transition">
+                  className="rounded-sm p-3 text-center transition-colors active:scale-95 border hover:bg-slate-50"
+                  style={{ backgroundColor: PAPER, borderColor: LINE }}>
                   <div className="flex justify-center mb-1.5">{s.icon}</div>
-                  <p className="text-[10px] font-black text-slate-700 leading-none">{s.label}</p>
-                  <p className="text-[9px] text-slate-400 mt-0.5">{s.sub}</p>
+                  <p className="text-[10px] font-black leading-none" style={{ color: INK }}>{s.label}</p>
+                  <p className="text-[9px] mt-0.5" style={{ color: MUTED }}>{s.sub}</p>
                 </Link>
               ))}
             </div>
@@ -790,15 +791,16 @@ const Navbar = () => {
 
         {/* Trending tags */}
         <div className="px-4 pb-4">
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-100 rounded-2xl p-3.5">
+          <div className="rounded-sm p-3.5 border" style={{ backgroundColor: PAPER, borderColor: LINE }}>
             <div className="flex items-center gap-2 mb-2.5">
-              <Flame size={13} className="text-orange-500" />
-              <p className="text-xs font-black text-slate-700">Trending Now</p>
+              <Flame size={13} style={{ color: ORANGE }} />
+              <p className="text-xs font-black" style={{ color: INK }}>Trending now</p>
             </div>
             <div className="flex gap-2 flex-wrap">
               {["Web Dev", "UI/UX", "Python", "Marketing", "AI"].map((tag) => (
                 <Link key={tag} to={`/courses?search=${tag}`}
-                  className="text-[10px] font-bold bg-white text-slate-600 hover:bg-orange-500 hover:text-white active:scale-95 px-2.5 py-1 rounded-full border border-amber-200 hover:border-orange-500 transition">
+                  className="text-[10px] font-bold bg-white px-2.5 py-1 rounded-sm border active:scale-95 transition-colors"
+                  style={{ color: INK, borderColor: LINE }}>
                   {tag}
                 </Link>
               ))}
@@ -808,12 +810,13 @@ const Navbar = () => {
 
         {/* Categories */}
         <div className="px-4 pb-4">
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2.5 px-1">Browse Categories</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest mb-2.5 px-1" style={{ color: MUTED, fontFamily: MONO_FONT }}>Browse categories</p>
           <div className="grid grid-cols-2 gap-2">
             {categories.map((cat) => (
               <NavLink key={cat.name} to={`/categories/${cat.name.toLowerCase()}`}
-                className="flex items-center gap-2.5 py-3 px-3.5 font-semibold text-sm text-slate-700 bg-slate-50 hover:bg-blue-50 hover:text-blue-600 rounded-xl transition active:scale-95">
-                <span className="text-lg">{cat.emoji}</span> {cat.name}
+                className="flex items-center gap-2.5 py-3 px-3.5 font-semibold text-sm rounded-sm transition-colors active:scale-95 border hover:bg-slate-50"
+                style={{ color: INK, borderColor: LINE }}>
+                {cat.name}
               </NavLink>
             ))}
           </div>
@@ -821,24 +824,24 @@ const Navbar = () => {
 
         {/* Quick links — logged in users */}
         {user && (
-          <div className="px-4 pb-3 border-t border-slate-100 pt-3">
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Quick Links</p>
+          <div className="px-4 pb-3 border-t pt-3" style={{ borderColor: LINE }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-2 px-1" style={{ color: MUTED, fontFamily: MONO_FONT }}>Quick links</p>
             <div className="space-y-0.5">
-              <Link to="/" className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-                <Home size={16} className="text-slate-400 shrink-0" /> Home
+              <Link to="/" className="flex items-center gap-3 py-2.5 px-3 rounded-sm text-sm font-semibold hover:bg-slate-50 transition-colors" style={{ color: INK }}>
+                <Home size={16} style={{ color: MUTED }} className="shrink-0" /> Home
               </Link>
               {getDropdownLinks().map(({ to, icon, label }) => (
                 <NavLink key={to} to={to}
-                  className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-                  <span className="text-slate-400 shrink-0">{icon}</span> {label}
+                  className="flex items-center gap-3 py-2.5 px-3 rounded-sm text-sm font-semibold hover:bg-slate-50 transition-colors" style={{ color: INK }}>
+                  <span className="shrink-0" style={{ color: MUTED }}>{icon}</span> {label}
                 </NavLink>
               ))}
               <Link to="/notifications"
-                className="flex items-center gap-3 py-2.5 px-3 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
-                <Bell size={16} className="text-slate-400 shrink-0" />
+                className="flex items-center gap-3 py-2.5 px-3 rounded-sm text-sm font-semibold hover:bg-slate-50 transition-colors" style={{ color: INK }}>
+                <Bell size={16} style={{ color: MUTED }} className="shrink-0" />
                 Notifications
                 {notifCount > 0 && (
-                  <span className="ml-auto bg-red-500 text-white text-[9px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                  <span className="ml-auto text-white text-[9px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0" style={{ backgroundColor: ORANGE }}>
                     {notifCount > 9 ? "9+" : notifCount}
                   </span>
                 )}
@@ -851,7 +854,8 @@ const Navbar = () => {
         {user && (
           <div className="px-4 pb-6 pt-2">
             <button onClick={handleLogout}
-              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold text-red-500 hover:bg-red-50 rounded-xl border border-red-100 transition">
+              className="w-full flex items-center justify-center gap-2 py-3 text-sm font-bold rounded-sm border transition-colors hover:bg-red-50"
+              style={{ color: "#B23A2E", borderColor: "#E7C6C0" }}>
               <LogOut size={15} /> Sign Out
             </button>
           </div>
