@@ -5,6 +5,17 @@ import { Star, Search, Filter, BookOpen, Clock, Users, Loader2 } from "lucide-re
 import { getAllCourses } from "../../services/courseService";
 import { getAllCategories } from "../../services/courseService";
 
+const INK    = "#22262B";
+const BLUE   = "#1B3A5C";
+const BLUE_DEEP = "#12283D";
+const PAPER  = "#EEF1F3";
+const LINE   = "#D8DEE3";
+const MUTED  = "#5B6570";
+const ORANGE = "#D65A2E";
+const MOSS   = "#4C7A5C";
+const DISPLAY_FONT = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
+const MONO_FONT    = "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace";
+
 const placeholderImgs = [
   "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
   "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80",
@@ -19,11 +30,11 @@ const getImg = (course, idx) =>
 
 const CourseSkeleton = () => (
   <div className="animate-pulse">
-    <div className="aspect-[16/10] bg-slate-100 rounded-2xl mb-4" />
+    <div className="aspect-[16/10] rounded-sm mb-4" style={{ backgroundColor: PAPER }} />
     <div className="space-y-2">
-      <div className="h-4 bg-slate-100 rounded w-3/4" />
-      <div className="h-3 bg-slate-100 rounded w-1/2" />
-      <div className="h-3 bg-slate-100 rounded w-1/4" />
+      <div className="h-4 rounded w-3/4" style={{ backgroundColor: PAPER }} />
+      <div className="h-3 rounded w-1/2" style={{ backgroundColor: PAPER }} />
+      <div className="h-3 rounded w-1/4" style={{ backgroundColor: PAPER }} />
     </div>
   </div>
 );
@@ -73,32 +84,40 @@ const CourseList = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-slate-50">
+      <div className="min-h-screen" style={{ backgroundColor: PAPER }}>
         {/* Header banner */}
-        <div className="bg-gradient-to-r from-slate-900 to-blue-900 text-white py-16 px-4">
-          <div className="max-w-7xl mx-auto">
-            <h1 className="text-4xl sm:text-5xl font-extrabold mb-3 tracking-tight">
-              All Courses
+        <div className="text-white py-16 px-4 relative overflow-hidden" style={{ backgroundColor: BLUE_DEEP }}>
+          <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
+            style={{
+              backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
+              backgroundSize: "44px 44px",
+            }} />
+          <div className="max-w-7xl mx-auto relative">
+            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: ORANGE, fontFamily: MONO_FONT }}>§ Catalog</p>
+            <h1 className="text-4xl sm:text-5xl font-black mb-3 tracking-tight" style={{ fontFamily: DISPLAY_FONT }}>
+              All courses
             </h1>
-            <p className="text-slate-300 mb-8 text-lg">
+            <p className="mb-8 text-lg text-white/70">
               {published.length} courses to help you grow your skills
             </p>
 
             {/* Search */}
             <div className="flex gap-3 max-w-xl">
               <div className="relative flex-1">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2" size={18} style={{ color: MUTED }} />
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Search courses or instructors..."
-                  className="w-full bg-white/10 border border-white/20 rounded-xl py-3.5 pl-12 pr-4 outline-none focus:bg-white/15 focus:border-blue-400 transition text-sm placeholder:text-slate-400"
+                  className="w-full rounded-sm py-3.5 pl-12 pr-4 outline-none transition text-sm border text-white"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.14)" }}
                 />
               </div>
               {search && (
                 <button
                   onClick={() => setSearch("")}
-                  className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-bold transition"
+                  className="px-4 py-3 rounded-sm text-sm font-bold transition border text-white"
+                  style={{ backgroundColor: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.14)" }}
                 >
                   Clear
                 </button>
@@ -116,11 +135,10 @@ const CourseList = () => {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
-                    activeTab === tab
-                      ? "bg-slate-900 text-white shadow-md"
-                      : "bg-white text-slate-500 hover:bg-slate-100 border border-slate-200"
-                  }`}
+                  className="px-4 py-2 rounded-sm text-sm font-bold whitespace-nowrap transition-colors border"
+                  style={activeTab === tab
+                    ? { backgroundColor: BLUE, color: "#fff", borderColor: BLUE }
+                    : { backgroundColor: "#fff", color: MUTED, borderColor: LINE }}
                 >
                   {tab}
                 </button>
@@ -129,11 +147,12 @@ const CourseList = () => {
 
             {/* Sort */}
             <div className="flex items-center gap-2 shrink-0">
-              <Filter size={15} className="text-slate-400" />
+              <Filter size={15} style={{ color: MUTED }} />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value)}
-                className="border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold outline-none bg-white focus:ring-2 focus:ring-blue-500"
+                className="border rounded-sm px-3 py-2 text-sm font-semibold outline-none bg-white"
+                style={{ borderColor: LINE, color: INK }}
               >
                 <option value="newest">Newest</option>
                 <option value="price-low">Price: Low to High</option>
@@ -144,7 +163,7 @@ const CourseList = () => {
           </div>
 
           {/* Results count */}
-          <p className="text-sm text-slate-400 font-medium mb-6">
+          <p className="text-sm font-medium mb-6" style={{ color: MUTED }}>
             Showing {filtered.length} course{filtered.length !== 1 ? "s" : ""}
             {activeTab !== "All" && ` in ${activeTab}`}
             {search && ` for "${search}"`}
@@ -157,15 +176,16 @@ const CourseList = () => {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-24">
-              <BookOpen size={52} className="text-slate-200 mx-auto mb-4" />
-              <p className="font-bold text-slate-500 text-xl">No courses found</p>
-              <p className="text-slate-400 mt-1 text-sm">
+              <BookOpen size={48} className="mx-auto mb-4" style={{ color: LINE }} />
+              <p className="font-bold text-xl" style={{ color: INK }}>No courses found</p>
+              <p className="mt-1 text-sm" style={{ color: MUTED }}>
                 {search ? "Try different keywords" : "No published courses in this category yet"}
               </p>
               {(search || activeTab !== "All") && (
                 <button
                   onClick={() => { setSearch(""); setActiveTab("All"); }}
-                  className="mt-4 px-6 py-2 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-700 transition"
+                  className="mt-4 px-6 py-2 text-white rounded-sm font-bold text-sm transition"
+                  style={{ backgroundColor: BLUE }}
                 >
                   Clear filters
                 </button>
@@ -175,52 +195,49 @@ const CourseList = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filtered.map((course, idx) => (
                 <Link key={course.id} to={`/courses/${course.id}`} className="group cursor-pointer">
-                  <div className="bg-white border border-slate-100 rounded-2xl overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
-                    <div className="aspect-[16/10] bg-slate-100 overflow-hidden relative">
+                  <div className="bg-white border rounded-sm overflow-hidden hover:shadow-lg transition-shadow duration-300" style={{ borderColor: LINE }}>
+                    <div className="aspect-[16/10] overflow-hidden relative" style={{ backgroundColor: PAPER }}>
                       <img
                         src={getImg(course, idx)}
                         alt={course.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover grayscale-[10%] group-hover:grayscale-0 transition-all duration-500"
                       />
                       <div className="absolute top-3 left-3">
                         {course.price === 0 ? (
-                          <span className="bg-emerald-500 text-white px-2 py-1 rounded-lg text-[10px] font-black uppercase shadow">
+                          <span className="text-white px-2 py-1 rounded-sm text-[10px] font-black uppercase" style={{ backgroundColor: MOSS }}>
                             Free
                           </span>
                         ) : (
-                          <span className="bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-black uppercase shadow">
+                          <span className="px-2 py-1 rounded-sm text-[10px] font-black uppercase" style={{ backgroundColor: "rgba(255,255,255,0.92)", color: INK }}>
                             Bestseller
                           </span>
                         )}
                       </div>
                     </div>
                     <div className="p-4">
-                      <h3 className="font-bold text-slate-900 leading-snug mb-1 group-hover:text-blue-600 transition-colors line-clamp-2 text-sm">
+                      <h3 className="font-bold leading-snug mb-1 line-clamp-2 text-sm" style={{ color: INK }}>
                         {course.title}
                       </h3>
-                      <p className="text-xs text-slate-400 mb-1 truncate">
+                      <p className="text-xs mb-1 truncate" style={{ color: MUTED, fontFamily: MONO_FONT }}>
                         {course.instructor?.fullName || "Instructor"}
                       </p>
-                      <p className="text-xs text-slate-400 line-clamp-2 mb-3">
+                      <p className="text-xs line-clamp-2 mb-3" style={{ color: MUTED }}>
                         {course.description}
                       </p>
                       <div className="flex items-center gap-1.5 mb-2">
-                        <span className="text-amber-500 font-black text-sm">4.8</span>
-                        <Star size={12} className="text-amber-400" fill="currentColor" />
+                        <span className="font-black text-sm" style={{ color: INK }}>4.8</span>
+                        <Star size={12} style={{ color: ORANGE }} fill="currentColor" />
                         {course.category?.name && (
-                          <span className="ml-auto text-[10px] bg-blue-50 text-blue-600 font-semibold px-2 py-0.5 rounded-full">
+                          <span className="ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-sm border" style={{ color: BLUE, borderColor: LINE }}>
                             {course.category.name}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-50">
-                        <span className="font-black text-slate-900">
-                          {course.price === 0
-                            ? <span className="text-emerald-600">Free</span>
-                            : `$${course.price}`
-                          }
+                      <div className="flex items-center justify-between pt-2 border-t" style={{ borderColor: LINE }}>
+                        <span className="font-black" style={{ fontFamily: MONO_FONT, color: course.price === 0 ? MOSS : ORANGE }}>
+                          {course.price === 0 ? "FREE" : `$${course.price}`}
                         </span>
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <span className="text-xs flex items-center gap-1" style={{ color: MUTED }}>
                           <Clock size={11} /> 6h+
                         </span>
                       </div>
