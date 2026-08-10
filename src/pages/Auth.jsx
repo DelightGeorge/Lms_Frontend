@@ -1,13 +1,24 @@
 import React, { useState, useRef, useEffect } from "react";
 import {
   Mail, Lock, User, ChevronRight, Eye, EyeOff,
-  Sparkles, ShieldCheck, ArrowLeft, Camera, X,
+  ShieldCheck, ArrowLeft, Camera, X,
   CheckCircle, Loader2, GraduationCap, AlertCircle,
-  RefreshCw,
+  RefreshCw, Briefcase,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import API from "../services/api";
 import { useAuth } from "../Context/AuthContext";
+
+const INK    = "#22262B";
+const BLUE   = "#1B3A5C";
+const BLUE_DEEP = "#12283D";
+const PAPER  = "#EEF1F3";
+const LINE   = "rgba(255,255,255,0.12)";
+const MUTED  = "#8D96A0";
+const ORANGE = "#D65A2E";
+const MOSS   = "#4C7A5C";
+const DISPLAY_FONT = "'Space Grotesk', ui-sans-serif, system-ui, sans-serif";
+const MONO_FONT    = "'JetBrains Mono', ui-monospace, SFMono-Regular, monospace";
 
 // ── Cloudinary upload ─────────────────────────────────────────────────────────
 const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME    || "your_cloud_name";
@@ -44,13 +55,42 @@ const Toast = ({ type, message, onClose }) => {
   if (!message) return null;
   const isSuccess = type === "success";
   return (
-    <div className={`fixed top-6 right-6 z-[999] flex items-start gap-3 px-5 py-4 rounded-xl shadow-2xl text-white font-semibold text-sm max-w-sm border backdrop-blur-xl transition-all
-      ${isSuccess ? "bg-emerald-500/90 border-emerald-400/50" : "bg-red-500/90 border-red-400/50"}`}>
+    <div className="fixed top-6 right-6 z-[999] flex items-start gap-3 px-5 py-4 rounded-sm shadow-2xl text-white font-semibold text-sm max-w-sm border"
+      style={{ backgroundColor: isSuccess ? MOSS : "#B23A2E", borderColor: "rgba(255,255,255,0.2)" }}>
       {isSuccess ? <CheckCircle size={18} className="shrink-0 mt-0.5" /> : <AlertCircle size={18} className="shrink-0 mt-0.5" />}
       <span className="flex-1 leading-snug">{message}</span>
       <button onClick={onClose} className="text-white/70 hover:text-white ml-1 shrink-0">
         <X size={14} />
       </button>
+    </div>
+  );
+};
+
+// ── Password strength meter (shared logic w/ ResetPassword) ──────────────────
+const strengthOf = (password) =>
+  (password.length >= 6 ? 1 : 0) +
+  (/[A-Z]/.test(password) ? 1 : 0) +
+  (/[0-9]/.test(password) ? 1 : 0) +
+  (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
+
+const StrengthMeter = ({ password }) => {
+  if (!password) return null;
+  const strength = strengthOf(password);
+  const colors = ["#B23A2E", ORANGE, "#C99A2E", MOSS];
+  const labels = ["Weak", "Okay", "Good", "Strong"];
+  return (
+    <div className="space-y-1.5">
+      <div className="flex gap-1.5">
+        {[1,2,3,4].map((lvl) => (
+          <div key={lvl} className="h-1 flex-1 rounded-full transition-all"
+            style={{ backgroundColor: lvl <= strength ? colors[Math.max(strength - 1, 0)] : "rgba(255,255,255,0.1)" }} />
+        ))}
+      </div>
+      {strength > 0 && (
+        <p className="text-[10px] font-semibold" style={{ fontFamily: MONO_FONT, color: colors[strength - 1] }}>
+          {labels[strength - 1]}
+        </p>
+      )}
     </div>
   );
 };
@@ -85,18 +125,19 @@ const AvatarUpload = ({ value, onChange, uploading, onUploadStart, onUploadEnd, 
     <div className="flex items-center gap-4">
       {/* Preview */}
       <div className="relative shrink-0">
-        <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/10 bg-white/5 flex items-center justify-center">
+        <div className="w-16 h-16 rounded-sm overflow-hidden border flex items-center justify-center" style={{ borderColor: LINE, backgroundColor: "rgba(255,255,255,0.04)" }}>
           {uploading ? (
-            <Loader2 size={22} className="text-amber-400 animate-spin" />
+            <Loader2 size={22} className="animate-spin" style={{ color: ORANGE }} />
           ) : value ? (
             <img src={value} alt="Avatar" className="w-full h-full object-cover" />
           ) : (
-            <User size={24} className="text-slate-500" />
+            <User size={24} style={{ color: MUTED }} />
           )}
         </div>
         {value && !uploading && (
           <button type="button" onClick={() => onChange("")}
-            className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center text-white transition">
+            className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full flex items-center justify-center text-white transition"
+            style={{ backgroundColor: "#B23A2E" }}>
             <X size={10} />
           </button>
         )}
@@ -105,17 +146,18 @@ const AvatarUpload = ({ value, onChange, uploading, onUploadStart, onUploadEnd, 
       {/* Button */}
       <div className="flex-1">
         <button type="button" onClick={() => ref.current?.click()} disabled={uploading}
-          className="w-full flex items-center gap-2.5 bg-white/5 border border-white/10 hover:border-amber-500/40 hover:bg-amber-500/5 rounded-xl px-4 py-3 transition disabled:opacity-50 group">
+          className="w-full flex items-center gap-2.5 border rounded-sm px-4 py-3 transition disabled:opacity-50 group"
+          style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: LINE }}>
           {uploading
-            ? <Loader2 size={16} className="text-amber-400 animate-spin shrink-0" />
-            : <Camera size={16} className="text-slate-400 group-hover:text-amber-400 transition shrink-0" />}
+            ? <Loader2 size={16} className="animate-spin shrink-0" style={{ color: ORANGE }} />
+            : <Camera size={16} className="shrink-0" style={{ color: MUTED }} />}
           <div className="text-left">
-            <p className="text-sm font-bold text-slate-300 group-hover:text-white transition">
+            <p className="text-sm font-bold text-white">
               {uploading ? "Uploading…" : value ? "Change photo" : "Upload photo"}
             </p>
-            <p className="text-[10px] text-slate-500">JPG, PNG · max 5MB · optional</p>
+            <p className="text-[10px]" style={{ color: MUTED }}>JPG, PNG · max 5MB · optional</p>
           </div>
-          {value && !uploading && <CheckCircle size={14} className="text-emerald-400 ml-auto shrink-0" />}
+          {value && !uploading && <CheckCircle size={14} className="ml-auto shrink-0" style={{ color: MOSS }} />}
         </button>
         <input ref={ref} type="file" accept="image/*" className="hidden"
           onChange={(e) => handleFile(e.target.files?.[0])} />
@@ -156,41 +198,42 @@ const friendlyError = (raw) => {
 
 // ── Registration success screen ───────────────────────────────────────────────
 const SuccessScreen = ({ email, role, onBack }) => (
-  <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center p-4 relative overflow-hidden">
-    <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-600/10 blur-3xl rounded-full pointer-events-none" />
-    <div className="relative z-10 max-w-md w-full bg-white/5 border border-white/10 rounded-3xl p-10 text-center space-y-6 backdrop-blur-sm">
-      <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto border-2 border-emerald-500/30">
-        <CheckCircle size={36} className="text-emerald-400" />
+  <div className="min-h-screen text-white flex items-center justify-center p-4 relative overflow-hidden" style={{ backgroundColor: BLUE_DEEP }}>
+    <div className="relative z-10 max-w-md w-full border rounded-sm p-10 text-center space-y-6" style={{ borderColor: LINE, backgroundColor: "rgba(255,255,255,0.04)" }}>
+      <div className="w-16 h-16 rounded-sm flex items-center justify-center mx-auto border-2" style={{ backgroundColor: "rgba(76,122,93,0.15)", borderColor: "rgba(76,122,93,0.4)" }}>
+        <CheckCircle size={30} style={{ color: MOSS }} />
       </div>
       <div className="space-y-2">
-        <h2 className="text-3xl font-black text-white">Account Created!</h2>
-        <p className="text-slate-400 text-sm leading-relaxed">
+        <h2 className="text-3xl font-black text-white" style={{ fontFamily: DISPLAY_FONT }}>Account created</h2>
+        <p className="text-sm leading-relaxed" style={{ color: MUTED }}>
           We sent a verification link to{" "}
-          <span className="text-amber-400 font-bold break-all">{email}</span>.
-          Click the link to activate your account before signing in.
+          <span className="font-bold break-all" style={{ color: ORANGE }}>{email}</span>.
+          Click it to activate your account before signing in.
         </p>
       </div>
 
       {role === "INSTRUCTOR" && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-5 text-left space-y-2">
-          <div className="flex items-center gap-2 text-blue-300 font-black text-sm">
-            <GraduationCap size={16} /> Next step for Instructors
+        <div className="border rounded-sm p-5 text-left space-y-2" style={{ backgroundColor: "rgba(27,58,92,0.3)", borderColor: LINE }}>
+          <div className="flex items-center gap-2 font-black text-sm" style={{ color: "#7B9DC4" }}>
+            <GraduationCap size={16} /> Next step for instructors
           </div>
-          <p className="text-xs text-slate-400 leading-relaxed">
-            After verifying your email, submit an <strong className="text-white">Instructor Application</strong> with your credentials and documents. Our team reviews within 2–3 business days.
+          <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
+            After verifying your email, submit an <strong className="text-white">Instructor Application</strong> with your credentials. Our team reviews within 2–3 business days.
           </p>
           <Link to="/become-instructor"
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-5 py-2.5 rounded-xl transition mt-1">
-            Go to Application Form
+            className="inline-flex items-center gap-2 text-white font-bold text-sm px-5 py-2.5 rounded-sm transition mt-1"
+            style={{ backgroundColor: BLUE }}>
+            Go to application form
           </Link>
         </div>
       )}
 
       <div className="space-y-3 pt-2">
-        <p className="text-xs text-slate-500">Didn't receive the email? Check your spam or junk folder.</p>
+        <p className="text-xs" style={{ color: MUTED }}>Didn't receive the email? Check your spam or junk folder.</p>
         <button onClick={onBack}
-          className="w-full border border-white/10 hover:border-white/20 text-slate-300 hover:text-white font-bold py-3 rounded-xl transition text-sm">
-          Back to Sign In
+          className="w-full border font-bold py-3 rounded-sm transition text-sm text-white"
+          style={{ borderColor: LINE }}>
+          Back to sign in
         </button>
       </div>
     </div>
@@ -216,21 +259,21 @@ const UnverifiedBanner = ({ email, onResent }) => {
   };
 
   return (
-    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 space-y-2">
-      <div className="flex items-center gap-2 text-amber-300 font-black text-sm">
+    <div className="border rounded-sm p-4 space-y-2" style={{ backgroundColor: "rgba(214,90,46,0.08)", borderColor: "rgba(214,90,46,0.3)" }}>
+      <div className="flex items-center gap-2 font-black text-sm" style={{ color: ORANGE }}>
         <AlertCircle size={15} /> Email not verified
       </div>
-      <p className="text-xs text-slate-400 leading-relaxed">
+      <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
         You need to verify your email before signing in. Check your inbox for a link from us.
       </p>
       {!sent ? (
         <button onClick={resend} disabled={sending}
-          className="flex items-center gap-1.5 text-xs font-bold text-amber-400 hover:text-amber-300 transition disabled:opacity-50">
+          className="flex items-center gap-1.5 text-xs font-bold transition disabled:opacity-50" style={{ color: ORANGE }}>
           {sending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
           {sending ? "Sending…" : "Resend verification email"}
         </button>
       ) : (
-        <p className="text-xs text-emerald-400 font-bold flex items-center gap-1.5">
+        <p className="text-xs font-bold flex items-center gap-1.5" style={{ color: MOSS }}>
           <CheckCircle size={12} /> Verification email resent — check your inbox
         </p>
       )}
@@ -306,7 +349,7 @@ const Auth = () => {
         });
         const { token, user } = res.data;
         login(user, token);
-        showToast("success", `Welcome back, ${user.fullName?.split(" ")[0] || "there"}! 👋`);
+        showToast("success", `Welcome back, ${user.fullName?.split(" ")[0] || "there"}!`);
         setTimeout(() => {
           if      (user.role === "ADMIN")      navigate("/admindashboard");
           else if (user.role === "INSTRUCTOR") navigate("/instructordashboard");
@@ -332,20 +375,23 @@ const Auth = () => {
   }
 
   // ── Field style helper ────────────────────────────────────────────────────
-  const fieldCls = "w-full bg-white/5 border border-white/10 rounded-xl py-3.5 pl-11 pr-4 outline-none focus:border-amber-500/50 focus:bg-white/8 focus:ring-1 focus:ring-amber-500/30 transition text-sm font-medium placeholder:text-slate-500 text-white";
+  const fieldCls = "w-full rounded-sm py-3.5 pl-11 pr-4 outline-none transition text-sm font-medium text-white border";
+  const fieldStyle = { backgroundColor: "rgba(255,255,255,0.04)", borderColor: LINE };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center relative overflow-hidden">
+    <div className="min-h-screen text-white flex items-center justify-center relative overflow-hidden" style={{ backgroundColor: BLUE_DEEP }}>
 
-      {/* Background blobs */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-amber-600/10 blur-3xl rounded-full pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-600/10 blur-3xl rounded-full pointer-events-none" />
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-indigo-600/5 blur-3xl rounded-full pointer-events-none" />
+      <div className="absolute inset-0 pointer-events-none opacity-[0.05]"
+        style={{
+          backgroundImage: "linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+        }} />
 
       <Toast type={toast.type} message={toast.message} onClose={clearToast} />
 
       {/* Back link */}
-      <Link to="/" className="fixed top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg hover:bg-white/10 transition text-sm font-semibold backdrop-blur-sm">
+      <Link to="/" className="fixed top-6 left-6 z-20 flex items-center gap-2 px-4 py-2 border rounded-sm transition text-sm font-semibold"
+        style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: LINE }}>
         <ArrowLeft size={16} /> Back
       </Link>
 
@@ -354,32 +400,33 @@ const Auth = () => {
 
           {/* ── Left panel ────────────────────────────────────────────────── */}
           <div className="hidden lg:block space-y-8">
-            <Link to="/" className="inline-flex items-center gap-2.5 group mb-8">
-              <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-xl group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-blue-600/30">L</div>
-              <span className="text-2xl font-black tracking-tight">LMS<span className="text-blue-400 italic">PRO</span></span>
+            <Link to="/" className="inline-flex items-center gap-2.5 mb-8">
+              <div className="w-11 h-11 rounded-sm flex items-center justify-center text-white font-black text-xl" style={{ backgroundColor: BLUE, fontFamily: DISPLAY_FONT }}>L</div>
+              <span className="text-2xl font-black tracking-tight" style={{ fontFamily: DISPLAY_FONT }}>LMS<span style={{ color: ORANGE }}>PRO</span></span>
             </Link>
             <div className="space-y-5">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold">
-                <Sparkles size={14} /> PREMIUM EDUCATION
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 border rounded-sm text-xs font-semibold tracking-widest" style={{ borderColor: LINE, fontFamily: MONO_FONT }}>
+                <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: ORANGE }} />
+                ACCOUNT ACCESS
               </div>
-              <h1 className="text-5xl lg:text-6xl font-black leading-tight tracking-tight">
-                Your Gateway to<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-300">Excellence</span>
+              <h1 className="text-5xl lg:text-6xl font-black leading-tight tracking-tight" style={{ fontFamily: DISPLAY_FONT }}>
+                Pick up
+                <br />
+                <span style={{ color: ORANGE }}>where you left off.</span>
               </h1>
-              <p className="text-lg text-slate-300 leading-relaxed max-w-md">
-                Join thousands of professionals transforming their careers with world-class courses.
+              <p className="text-base text-white/70 leading-relaxed max-w-md">
+                One account for every course you take or teach.
               </p>
               <div className="space-y-4 pt-4">
                 {[
-                  { number: "500+", label: "Premium Courses"  },
-                  { number: "2M+",  label: "Active Learners"  },
-                  { number: "4.9★", label: "Average Rating"   },
+                  { number: "500+", label: "Courses"  },
+                  { number: "2M+",  label: "Learners"  },
+                  { number: "4.9",  label: "Avg rating"   },
                 ].map((s) => (
-                  <div key={s.label} className="flex items-start gap-3">
-                    <div className="w-2 h-2 rounded-full bg-amber-400 mt-2 shrink-0" />
+                  <div key={s.label} className="flex items-center gap-3 pl-3 border-l-2" style={{ borderColor: ORANGE }}>
                     <div>
-                      <p className="font-black text-xl text-white">{s.number}</p>
-                      <p className="text-sm text-slate-400">{s.label}</p>
+                      <p className="font-black text-xl text-white" style={{ fontFamily: DISPLAY_FONT }}>{s.number}</p>
+                      <p className="text-sm" style={{ color: MUTED, fontFamily: MONO_FONT }}>{s.label}</p>
                     </div>
                   </div>
                 ))}
@@ -391,14 +438,13 @@ const Auth = () => {
           <div className="space-y-5 max-w-md w-full mx-auto">
 
             {/* Mode toggle */}
-            <div className="flex p-1.5 bg-white/5 rounded-xl border border-white/10 backdrop-blur-sm">
+            <div className="flex p-1.5 border rounded-sm" style={{ backgroundColor: "rgba(255,255,255,0.04)", borderColor: LINE }}>
               {[{ key: "login", label: "Sign In" }, { key: "register", label: "Create Account" }].map((m) => (
                 <button key={m.key} type="button" onClick={() => switchMode(m.key)}
-                  className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all duration-200 ${
-                    mode === m.key
-                      ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white shadow-lg shadow-amber-600/30"
-                      : "text-slate-400 hover:text-white"
-                  }`}>
+                  className="flex-1 py-3 rounded-sm text-sm font-bold transition-all duration-200"
+                  style={mode === m.key
+                    ? { backgroundColor: ORANGE, color: "#fff" }
+                    : { color: MUTED }}>
                   {m.label}
                 </button>
               ))}
@@ -406,11 +452,11 @@ const Auth = () => {
 
             {/* Header */}
             <div className="pt-1">
-              <h2 className="text-3xl font-black text-white">
-                {mode === "login" ? "Welcome Back" : "Start Learning"}
+              <h2 className="text-3xl font-black text-white" style={{ fontFamily: DISPLAY_FONT }}>
+                {mode === "login" ? "Welcome back" : "Create your account"}
               </h2>
-              <p className="text-sm text-slate-400 mt-1">
-                {mode === "login" ? "Sign in to access your courses" : "Create your free account today"}
+              <p className="text-sm mt-1" style={{ color: MUTED }}>
+                {mode === "login" ? "Sign in to access your courses" : "Takes less than a minute"}
               </p>
             </div>
 
@@ -427,11 +473,11 @@ const Auth = () => {
                 <>
                   {/* Full name */}
                   <div className="relative group">
-                    <User className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 transition-colors pointer-events-none" size={17} />
-                    <input type="text" placeholder="Full Name" value={fullName}
+                    <User className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" size={17} style={{ color: MUTED }} />
+                    <input type="text" placeholder="Full name" value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       autoComplete="name" required
-                      className={fieldCls} />
+                      className={fieldCls} style={fieldStyle} />
                   </div>
 
                   {/* Avatar */}
@@ -446,21 +492,20 @@ const Auth = () => {
 
                   {/* Role selector — state-driven (no peer-checked needed) */}
                   <div className="space-y-2">
-                    <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">I want to</p>
+                    <p className="text-xs font-bold uppercase tracking-wider" style={{ color: MUTED, fontFamily: MONO_FONT }}>I want to</p>
                     <div className="grid grid-cols-2 gap-2">
                       {[
-                        { r: "STUDENT",    label: "Learn",        icon: "🎓", desc: "Take courses & earn certificates" },
-                        { r: "INSTRUCTOR", label: "Teach & Earn", icon: "🏫", desc: "Create courses & earn revenue"    },
+                        { r: "STUDENT",    label: "Learn",        icon: <GraduationCap size={18} />, desc: "Take courses, earn certificates" },
+                        { r: "INSTRUCTOR", label: "Teach & earn", icon: <Briefcase size={18} />,      desc: "Create courses, earn revenue"    },
                       ].map(({ r, label, icon, desc }) => (
                         <button key={r} type="button" onClick={() => setRole(r)}
-                          className={`p-4 rounded-xl border-2 transition text-center w-full ${
-                            role === r
-                              ? "border-amber-500/60 bg-amber-500/10"
-                              : "border-white/10 hover:border-white/20 bg-white/5"
-                          }`}>
-                          <span className="text-2xl block mb-1">{icon}</span>
-                          <p className={`text-sm font-black ${role === r ? "text-amber-400" : "text-white"}`}>{label}</p>
-                          <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{desc}</p>
+                          className="p-4 rounded-sm border transition text-center w-full"
+                          style={role === r
+                            ? { borderColor: ORANGE, backgroundColor: "rgba(214,90,46,0.1)" }
+                            : { borderColor: LINE, backgroundColor: "rgba(255,255,255,0.03)" }}>
+                          <span className="flex justify-center mb-1.5" style={{ color: role === r ? ORANGE : MUTED }}>{icon}</span>
+                          <p className="text-sm font-black" style={{ color: role === r ? ORANGE : "#fff" }}>{label}</p>
+                          <p className="text-[10px] mt-0.5 leading-tight" style={{ color: MUTED }}>{desc}</p>
                         </button>
                       ))}
                     </div>
@@ -468,12 +513,12 @@ const Auth = () => {
 
                   {/* Instructor notice */}
                   {role === "INSTRUCTOR" && (
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex gap-3">
-                      <GraduationCap size={18} className="text-blue-400 shrink-0 mt-0.5" />
+                    <div className="border rounded-sm p-4 flex gap-3" style={{ backgroundColor: "rgba(27,58,92,0.3)", borderColor: LINE }}>
+                      <GraduationCap size={18} className="shrink-0 mt-0.5" style={{ color: "#7B9DC4" }} />
                       <div>
-                        <p className="text-sm font-bold text-blue-300 mb-1">Instructor Application Required</p>
-                        <p className="text-xs text-slate-400 leading-relaxed">
-                          After verifying your email you'll complete a short application with your credentials. Our team reviews in 2–3 business days.
+                        <p className="text-sm font-bold mb-1" style={{ color: "#7B9DC4" }}>Instructor application required</p>
+                        <p className="text-xs leading-relaxed" style={{ color: MUTED }}>
+                          After verifying your email you'll complete a short application. Our team reviews in 2–3 business days.
                         </p>
                       </div>
                     </div>
@@ -483,16 +528,16 @@ const Auth = () => {
 
               {/* Email */}
               <div className="relative group">
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 transition-colors pointer-events-none" size={17} />
-                <input type="email" placeholder="Email Address" value={email}
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" size={17} style={{ color: MUTED }} />
+                <input type="email" placeholder="Email address" value={email}
                   onChange={(e) => { setEmail(e.target.value); setEmailUnverified(false); }}
                   autoComplete="email" required
-                  className={fieldCls} />
+                  className={fieldCls} style={fieldStyle} />
               </div>
 
               {/* Password */}
               <div className="relative group">
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 transition-colors pointer-events-none" size={17} />
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" size={17} style={{ color: MUTED }} />
                 <input
                   type={showPassword ? "text" : "password"}
                   placeholder="Password"
@@ -500,37 +545,40 @@ const Auth = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete={mode === "login" ? "current-password" : "new-password"}
                   required
-                  className={`${fieldCls} pr-12`}
+                  className={`${fieldCls} pr-12`} style={fieldStyle}
                 />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition">
+                  className="absolute right-4 top-1/2 -translate-y-1/2 transition" style={{ color: MUTED }}>
                   {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
                 </button>
               </div>
 
+              {/* Password strength — register only */}
+              {mode === "register" && <StrengthMeter password={password} />}
+
               {/* Confirm password */}
               {mode === "register" && (
                 <div className="relative group">
-                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-amber-400 transition-colors pointer-events-none" size={17} />
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 transition-colors pointer-events-none" size={17} style={{ color: MUTED }} />
                   <input
                     type={showConfirm ? "text" : "password"}
-                    placeholder="Confirm Password"
+                    placeholder="Confirm password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     autoComplete="new-password"
                     required
-                    className={`${fieldCls} pr-12`}
+                    className={`${fieldCls} pr-12`} style={fieldStyle}
                   />
                   <button type="button" onClick={() => setShowConfirm(!showConfirm)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition">
+                    className="absolute right-4 top-1/2 -translate-y-1/2 transition" style={{ color: MUTED }}>
                     {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
                   </button>
                   {/* Live password match indicator */}
                   {confirmPassword.length > 0 && (
                     <div className="absolute right-11 top-1/2 -translate-y-1/2">
                       {password === confirmPassword
-                        ? <CheckCircle size={15} className="text-emerald-400" />
-                        : <X size={15} className="text-red-400" />
+                        ? <CheckCircle size={15} style={{ color: MOSS }} />
+                        : <X size={15} style={{ color: "#D4695C" }} />
                       }
                     </div>
                   )}
@@ -540,7 +588,7 @@ const Auth = () => {
               {/* Forgot password */}
               {mode === "login" && (
                 <div className="text-right -mt-1">
-                  <Link to="/forgot-password" className="text-xs text-slate-400 hover:text-amber-400 transition font-semibold">
+                  <Link to="/forgot-password" className="text-xs font-semibold transition" style={{ color: MUTED }}>
                     Forgot password?
                   </Link>
                 </div>
@@ -549,19 +597,20 @@ const Auth = () => {
               {/* Submit */}
               <button type="submit"
                 disabled={loading || avatarUploading}
-                className="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-white py-4 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-600/30 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] mt-1">
+                className="w-full text-white py-4 rounded-sm font-black text-sm transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] mt-1"
+                style={{ backgroundColor: ORANGE }}>
                 {loading ? (
                   <><Spinner size={18} /><span>{mode === "login" ? "Signing in…" : "Creating account…"}</span></>
                 ) : (
-                  <>{mode === "login" ? "Sign In" : "Create Account"}<ChevronRight size={17} /></>
+                  <>{mode === "login" ? "Sign in" : "Create account"}<ChevronRight size={17} /></>
                 )}
               </button>
 
               {/* Register hint */}
               {mode === "login" && (
-                <p className="text-center text-xs text-slate-500 pt-1">
+                <p className="text-center text-xs pt-1" style={{ color: MUTED }}>
                   Don't have an account?{" "}
-                  <button type="button" onClick={() => switchMode("register")} className="text-amber-400 hover:text-amber-300 font-bold transition">
+                  <button type="button" onClick={() => switchMode("register")} className="font-bold transition" style={{ color: ORANGE }}>
                     Create one free
                   </button>
                 </p>
@@ -570,8 +619,8 @@ const Auth = () => {
 
             {/* Security badge */}
             <div className="flex justify-center pt-1">
-              <div className="flex items-center gap-2 text-xs text-slate-400 bg-white/5 px-4 py-2.5 rounded-full border border-white/10">
-                <ShieldCheck size={13} className="text-emerald-400" />
+              <div className="flex items-center gap-2 text-xs border rounded-sm px-4 py-2.5" style={{ color: MUTED, borderColor: LINE }}>
+                <ShieldCheck size={13} style={{ color: MOSS }} />
                 <span className="font-semibold">Secured with JWT + bcrypt encryption</span>
               </div>
             </div>
