@@ -3,8 +3,9 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import {
   Play, Lock, CheckCircle, X, BookOpen, Users, Star,
   Zap, Award, FileText, Video, Loader2, Trophy, Target,
-  HelpCircle, AlertCircle, ChevronRight, ArrowLeft,
+  HelpCircle, AlertCircle, ChevronRight, ChevronDown, ArrowLeft,
   Share2, Globe, ShieldCheck, Flame, TrendingUp, MessageCircle,
+  Menu, Infinity as InfinityIcon, Sparkles,
 } from "lucide-react";
 
 import Layout from "../../shared/Layout/Layout";
@@ -316,8 +317,8 @@ const ReviewsSection = ({ courseId, canAccess, userId }) => {
         <div className="border rounded-sm p-6 flex flex-col sm:flex-row items-center gap-6" style={{ backgroundColor: "rgba(214,90,46,0.05)", borderColor: "rgba(214,90,46,0.2)" }}>
           <div className="text-center shrink-0">
             <p className="text-6xl font-black leading-none" style={{ fontFamily: DISPLAY_FONT, color: INK }}>{avgRating}</p>
-            <div className="mt-2"><Stars rating={avgRating} size={16} /></div>
-            <p className="text-xs mt-2 font-medium" style={{ color: MUTED }}>{fmt(total)} review{total !== 1 ? "s" : ""}</p>
+            <Stars rating={avgRating} size={16} />
+            <p className="text-xs mt-1 font-medium" style={{ color: MUTED }}>{total} review{total !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex-1 w-full space-y-2">
             {[5, 4, 3, 2, 1].map((star) => {
@@ -402,52 +403,61 @@ const ReviewsSection = ({ courseId, canAccess, userId }) => {
 const BuyCard = ({ course, isFree, lessons, enrolling, onEnroll, onBuy, onShare, copied }) => (
   <div className="bg-white rounded-sm shadow-2xl border overflow-hidden" style={{ borderColor: LINE }}>
     {course.thumbnail ? (
-      <div className="relative overflow-hidden h-40">
+      <div className="relative overflow-hidden h-44 group cursor-default">
         <img src={course.thumbnail} alt="" className="w-full h-full object-cover" />
-        {!isFree && (
-          <div className="absolute top-3 right-3 bg-white rounded-sm px-3 py-1.5 font-black text-lg shadow-md" style={{ color: INK }}>
-            ${course.price}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+        {course.avgRating ? (
+          <div className="absolute top-3 left-3 flex items-center gap-1 bg-white/95 backdrop-blur rounded-sm px-2.5 py-1 shadow-md">
+            <Star size={11} style={{ color: ORANGE }} className="fill-current" />
+            <span className="text-xs font-black" style={{ color: INK }}>{course.avgRating.toFixed(1)}</span>
           </div>
-        )}
+        ) : null}
       </div>
     ) : (
-      <div className="h-40 flex items-center justify-center" style={{ backgroundColor: BLUE }}>
+      <div className="h-44 flex items-center justify-center" style={{ backgroundColor: BLUE }}>
         <BookOpen size={40} className="text-white/50" />
       </div>
     )}
     <div className="p-6 space-y-5">
-      <div className="flex items-baseline gap-2">
-        <span className="text-3xl font-black" style={{ fontFamily: DISPLAY_FONT, color: isFree ? MOSS : ORANGE }}>{isFree ? "Free" : `$${course.price}`}</span>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className="text-3xl font-black" style={{ fontFamily: DISPLAY_FONT, color: isFree ? MOSS : ORANGE }}>
+          {isFree ? "Free" : `$${course.price}`}
+        </span>
+        {!isFree && (
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-sm" style={{ backgroundColor: "rgba(76,122,93,0.1)", color: MOSS }}>
+            One-time
+          </span>
+        )}
       </div>
       <div className="space-y-2.5">
         <button onClick={isFree ? onEnroll : onBuy} disabled={enrolling}
-          className="w-full py-4 disabled:opacity-60 text-white rounded-sm font-black text-sm transition flex items-center justify-center gap-2"
-          style={{ backgroundColor: ORANGE }}>
+          className="w-full py-4 disabled:opacity-60 text-white rounded-sm font-black text-sm transition flex items-center justify-center gap-2 shadow-lg"
+          style={{ backgroundColor: ORANGE, boxShadow: "0 8px 20px -8px rgba(214,90,46,0.6)" }}>
           {enrolling ? <Loader2 size={18} className="animate-spin" /> : <Zap size={18} />}
           {enrolling ? "Enrolling…" : isFree ? "Enroll for free" : "Buy now"}
         </button>
         <button onClick={onShare}
-          className="w-full py-3 border rounded-sm font-bold text-sm transition flex items-center justify-center gap-2"
+          className="w-full py-3 border rounded-sm font-bold text-sm transition flex items-center justify-center gap-2 hover:bg-slate-50"
           style={{ borderColor: LINE, color: INK }}>
           <Share2 size={15} />
           {copied ? "Link copied" : "Share course"}
         </button>
       </div>
-      <div className="space-y-2.5 pt-1">
+      <div className="space-y-2.5 pt-1 border-t" style={{ borderColor: LINE }}>
         {[
-          { icon: ShieldCheck, text: "Secure payment via Paystack"       },
-          { icon: BookOpen,    text: `${lessons.length} lessons · lifetime access` },
-          { icon: Award,       text: "Certificate of completion"          },
-          { icon: Flame,       text: "Start learning immediately"         },
+          { icon: ShieldCheck,   text: "Secure payment via Paystack"          },
+          { icon: InfinityIcon,  text: `${lessons.length} lessons · lifetime access` },
+          { icon: Award,         text: "Certificate of completion"           },
+          { icon: Flame,         text: "Start learning immediately"          },
         ].map(({ icon: Icon, text }) => (
-          <div key={text} className="flex items-center gap-3 text-sm" style={{ color: MUTED }}>
+          <div key={text} className="flex items-center gap-3 text-sm pt-2.5 first:pt-0" style={{ color: MUTED }}>
             <Icon size={15} style={{ color: BLUE }} className="shrink-0" />
             {text}
           </div>
         ))}
       </div>
       {course.instructor && (
-        <div className="pt-2 border-t flex items-center gap-3" style={{ borderColor: LINE }}>
+        <div className="pt-4 border-t flex items-center gap-3" style={{ borderColor: LINE }}>
           <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-white font-black text-sm shrink-0"
             style={{ backgroundColor: BLUE }}>
             {course.instructor.avatarUrl
@@ -461,6 +471,18 @@ const BuyCard = ({ course, isFree, lessons, enrolling, onEnroll, onBuy, onShare,
         </div>
       )}
     </div>
+  </div>
+);
+
+// ─── Stat pill (shared by both modes) ─────────────────────────────────────────
+const StatPill = ({ label, value, icon: Icon, color, dark }) => (
+  <div className="rounded-sm p-4 text-center border"
+    style={dark
+      ? { backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }
+      : { backgroundColor: "#fff", borderColor: LINE }}>
+    <Icon size={15} style={{ color }} className="mx-auto mb-1.5" />
+    <p className="text-lg font-black" style={{ fontFamily: DISPLAY_FONT, color: dark ? "#fff" : INK }}>{value}</p>
+    <p className="text-[10px] uppercase tracking-wider" style={{ color: dark ? "rgba(255,255,255,0.4)" : MUTED }}>{label}</p>
   </div>
 );
 
@@ -484,6 +506,7 @@ const CourseDetail = () => {
   const [activeTab,      setActiveTab]      = useState("curriculum");
   const [toast,          setToast]          = useState(null);
   const [copied,         setCopied]         = useState(false);
+  const [mobileLessons,  setMobileLessons]  = useState(false); // learning-mode lesson drawer on small screens
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
@@ -520,6 +543,7 @@ const CourseDetail = () => {
   const isFree       = !course?.price || course.price === 0;
   const isOwner      = user?.id === course?.instructor?.id;
   const canAccess    = isEnrolled || isOwner || user?.role === "ADMIN";
+  const nextLesson   = lessons.find((l) => !completedSet.has(l.id));
 
   const handleMarkComplete = async (lessonId) => {
     if (completedSet.has(lessonId)) return;
@@ -682,6 +706,37 @@ const CourseDetail = () => {
         </>
       )}
 
+      {/* ── MOBILE LESSON DRAWER (learning mode) ─────────────────────────────── */}
+      {canAccess && mobileLessons && (
+        <>
+          <div onClick={() => setMobileLessons(false)} className="fixed inset-0 bg-black/70 z-50 lg:hidden" />
+          <div className="fixed inset-x-3 top-[6%] bottom-[6%] z-50 flex flex-col bg-white rounded-sm shadow-2xl overflow-hidden lg:hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b shrink-0" style={{ borderColor: LINE }}>
+              <h3 className="font-black" style={{ color: INK, fontFamily: DISPLAY_FONT }}>All lessons</h3>
+              <button onClick={() => setMobileLessons(false)} className="p-2 rounded-sm hover:bg-slate-50" style={{ color: MUTED }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 space-y-1">
+              {lessons.map((l, i) => {
+                const done = completedSet.has(l.id);
+                return (
+                  <button key={l.id} onClick={() => { setSelectedLesson(l); setMobileLessons(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-sm text-left transition"
+                    style={{ backgroundColor: done ? "rgba(76,122,93,0.06)" : "transparent" }}>
+                    <span className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-black shrink-0"
+                      style={done ? { backgroundColor: MOSS, color: "#fff" } : { backgroundColor: PAPER, color: MUTED }}>
+                      {done ? "✓" : i + 1}
+                    </span>
+                    <span className="text-sm font-medium truncate flex-1" style={{ color: done ? MOSS : INK }}>{l.title}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
+
       {/* ══════════════════════════════════════════════════════════════════════
           ENROLLED — LEARNING MODE  (deep blueprint)
          ══════════════════════════════════════════════════════════════════ */}
@@ -690,21 +745,25 @@ const CourseDetail = () => {
 
           {/* top bar */}
           <div className="sticky top-0 z-30 backdrop-blur border-b" style={{ backgroundColor: "rgba(18,40,61,0.95)", borderColor: "rgba(255,255,255,0.08)" }}>
-            <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-4">
+            <div className="max-w-7xl mx-auto px-4 h-14 flex items-center gap-3">
               <button onClick={() => navigate(-1)}
                 className="flex items-center gap-2 text-sm font-medium shrink-0 transition text-white/70 hover:text-white">
                 <ArrowLeft size={16} />
                 <span className="hidden sm:inline">Back</span>
               </button>
-              <div className="flex-1 min-w-0 text-center">
+              <div className="flex-1 min-w-0 text-center sm:text-left">
                 <h1 className="font-black text-sm truncate">{course.title}</h1>
               </div>
-              <div className="hidden sm:flex items-center gap-2 rounded-full px-3 py-1.5 shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
-                <div className="w-20 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
+              <div className="flex items-center gap-2 rounded-full px-2.5 sm:px-3 py-1.5 shrink-0" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <div className="w-12 sm:w-20 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.1)" }}>
                   <div className="h-full rounded-full transition-all" style={{ backgroundColor: MOSS, width: `${progress.percentage}%` }} />
                 </div>
                 <span className="text-xs font-bold" style={{ color: MOSS }}>{progress.percentage}%</span>
               </div>
+              <button onClick={() => setMobileLessons(true)}
+                className="lg:hidden p-2 rounded-sm shrink-0 text-white/70 hover:text-white transition" style={{ backgroundColor: "rgba(255,255,255,0.08)" }}>
+                <Menu size={16} />
+              </button>
             </div>
           </div>
 
@@ -719,43 +778,44 @@ const CourseDetail = () => {
                   <img src={course.thumbnail} alt=""
                     className="absolute inset-0 w-full h-full object-cover opacity-10" />
                 )}
-                <div className="relative">
-                  {course.category?.name && (
-                    <span className="inline-block text-[10px] font-bold border px-3 py-1 rounded-sm mb-3 uppercase tracking-wider"
-                      style={{ borderColor: "rgba(214,90,46,0.4)", color: ORANGE, backgroundColor: "rgba(214,90,46,0.1)" }}>
-                      {course.category.name}
-                    </span>
+                <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+                  <div className="min-w-0">
+                    {course.category?.name && (
+                      <span className="inline-block text-[10px] font-bold border px-3 py-1 rounded-sm mb-3 uppercase tracking-wider"
+                        style={{ borderColor: "rgba(214,90,46,0.4)", color: ORANGE, backgroundColor: "rgba(214,90,46,0.1)" }}>
+                        {course.category.name}
+                      </span>
+                    )}
+                    <h2 className="text-xl sm:text-2xl font-black mb-2 leading-tight" style={{ fontFamily: DISPLAY_FONT }}>{course.title}</h2>
+                    <p className="text-sm leading-relaxed line-clamp-2 text-white/60 max-w-xl">{course.description}</p>
+                  </div>
+                  {nextLesson && (
+                    <button onClick={() => setSelectedLesson(nextLesson)}
+                      className="shrink-0 flex items-center gap-2 px-5 py-3 rounded-sm font-black text-sm transition self-start sm:self-end"
+                      style={{ backgroundColor: ORANGE }}>
+                      <Play size={15} /> {progress.percentage > 0 ? "Continue" : "Start course"}
+                    </button>
                   )}
-                  <h2 className="text-xl sm:text-2xl font-black mb-2 leading-tight" style={{ fontFamily: DISPLAY_FONT }}>{course.title}</h2>
-                  <p className="text-sm leading-relaxed line-clamp-2 text-white/60">{course.description}</p>
                 </div>
               </div>
 
               {/* stat pills */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
-                {[
-                  { label: "Progress",  value: `${progress.percentage}%`,                                      icon: TrendingUp,  color: MOSS   },
-                  { label: "Done",      value: `${progress.completedLessonIds.length}/${lessons.length}`,      icon: CheckCircle, color: "#7B9DC4" },
-                  { label: "Students",  value: fmt(course._count?.enrollments || 0),                           icon: Users,       color: "#9B8CC4" },
-                  { label: "Rating",    value: course.avgRating ? course.avgRating.toFixed(1) : "New",         icon: Star,        color: ORANGE },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="rounded-sm p-4 text-center border" style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                    <Icon size={15} style={{ color }} className="mx-auto mb-1.5" />
-                    <p className="text-lg font-black" style={{ fontFamily: DISPLAY_FONT }}>{value}</p>
-                    <p className="text-[10px] uppercase tracking-wider text-white/40">{label}</p>
-                  </div>
-                ))}
+                <StatPill dark label="Progress" value={`${progress.percentage}%`} icon={TrendingUp} color={MOSS} />
+                <StatPill dark label="Done" value={`${progress.completedLessonIds.length}/${lessons.length}`} icon={CheckCircle} color="#7B9DC4" />
+                <StatPill dark label="Students" value={fmt(course._count?.enrollments || 0)} icon={Users} color="#9B8CC4" />
+                <StatPill dark label="Rating" value={course.avgRating ? course.avgRating.toFixed(1) : "New"} icon={Star} color={ORANGE} />
               </div>
 
               {/* tabs */}
               <div className="rounded-sm border overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.08)" }}>
-                <div className="flex border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                <div className="flex border-b overflow-x-auto" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
                   {tabs.map(({ key, label, count, icon: Icon }) => (
                     <button key={key} onClick={() => setActiveTab(key)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-4 text-xs font-bold transition border-b-2"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-4 px-3 text-xs font-bold transition border-b-2 whitespace-nowrap"
                       style={activeTab === key ? { borderColor: ORANGE, color: ORANGE } : { borderColor: "transparent", color: "rgba(255,255,255,0.4)" }}>
                       <Icon size={13} />
-                      <span className="hidden sm:inline">{label}</span>
+                      <span>{label}</span>
                       {count !== null && count > 0 && (
                         <span className="text-[9px] font-black px-1.5 py-0.5 rounded-full"
                           style={activeTab === key ? { backgroundColor: "rgba(214,90,46,0.2)", color: ORANGE } : { backgroundColor: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.4)" }}>
@@ -766,19 +826,26 @@ const CourseDetail = () => {
                   ))}
                 </div>
 
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   {activeTab === "curriculum" && (
                     <div className="space-y-2">
                       {lessons.map((lesson, idx) => {
-                        const done = completedSet.has(lesson.id);
+                        const done   = completedSet.has(lesson.id);
+                        const isNext = nextLesson?.id === lesson.id;
                         return (
                           <button key={lesson.id} onClick={() => setSelectedLesson(lesson)}
                             className="w-full flex items-center gap-4 p-4 rounded-sm border transition text-left group"
                             style={done
                               ? { borderColor: "rgba(76,122,93,0.25)", backgroundColor: "rgba(76,122,93,0.06)" }
-                              : { borderColor: "rgba(255,255,255,0.08)" }}>
+                              : isNext
+                                ? { borderColor: "rgba(214,90,46,0.35)", backgroundColor: "rgba(214,90,46,0.05)" }
+                                : { borderColor: "rgba(255,255,255,0.08)" }}>
                             <div className="w-10 h-10 rounded-sm flex items-center justify-center shrink-0 font-black text-sm transition"
-                              style={done ? { backgroundColor: MOSS, color: "#fff" } : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                              style={done
+                                ? { backgroundColor: MOSS, color: "#fff" }
+                                : isNext
+                                  ? { backgroundColor: ORANGE, color: "#fff" }
+                                  : { backgroundColor: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
                               {done ? <CheckCircle size={16} /> : idx + 1}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -789,6 +856,11 @@ const CourseDetail = () => {
                                 <p className="font-bold text-sm truncate" style={{ color: done ? MOSS : "#fff" }}>
                                   {lesson.title}
                                 </p>
+                                {isNext && !done && (
+                                  <span className="shrink-0 text-[9px] font-black px-2 py-0.5 rounded-sm uppercase tracking-wider" style={{ backgroundColor: "rgba(214,90,46,0.15)", color: ORANGE }}>
+                                    Up next
+                                  </span>
+                                )}
                               </div>
                               <p className="text-[10px] mt-0.5 uppercase tracking-wider text-white/30">{lesson.type}</p>
                             </div>
@@ -812,8 +884,8 @@ const CourseDetail = () => {
               </div>
             </div>
 
-            {/* RIGHT: sticky sidebar */}
-            <div className="w-full lg:w-72 xl:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-20">
+            {/* RIGHT: sticky sidebar (desktop only — mobile uses the drawer) */}
+            <div className="hidden lg:block w-72 xl:w-80 shrink-0 order-1 lg:order-2 lg:sticky lg:top-20">
               <div className="rounded-sm border overflow-hidden" style={{ backgroundColor: "rgba(255,255,255,0.02)", borderColor: "rgba(255,255,255,0.08)" }}>
 
                 {/* progress ring */}
@@ -834,29 +906,26 @@ const CourseDetail = () => {
                 </div>
 
                 {/* next lesson */}
-                {(() => {
-                  const next = lessons.find((l) => !completedSet.has(l.id));
-                  return next ? (
-                    <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                      <p className="text-[10px] uppercase tracking-widest font-bold mb-2 text-white/40" style={{ fontFamily: MONO_FONT }}>Up next</p>
-                      <button onClick={() => setSelectedLesson(next)}
-                        className="w-full flex items-center gap-3 p-3 rounded-sm transition border text-left group"
-                        style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
-                        <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ backgroundColor: ORANGE }}>
-                          <Play size={12} className="text-white" />
-                        </div>
-                        <p className="text-xs font-bold truncate flex-1 text-white/80">{next.title}</p>
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
-                      <div className="flex items-center gap-2" style={{ color: MOSS }}>
-                        <Trophy size={16} />
-                        <p className="text-sm font-black">All lessons complete</p>
+                {nextLesson ? (
+                  <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                    <p className="text-[10px] uppercase tracking-widest font-bold mb-2 text-white/40" style={{ fontFamily: MONO_FONT }}>Up next</p>
+                    <button onClick={() => setSelectedLesson(nextLesson)}
+                      className="w-full flex items-center gap-3 p-3 rounded-sm transition border text-left group"
+                      style={{ backgroundColor: "rgba(255,255,255,0.03)", borderColor: "rgba(255,255,255,0.08)" }}>
+                      <div className="w-8 h-8 rounded-sm flex items-center justify-center shrink-0" style={{ backgroundColor: ORANGE }}>
+                        <Play size={12} className="text-white" />
                       </div>
+                      <p className="text-xs font-bold truncate flex-1 text-white/80">{nextLesson.title}</p>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 border-b" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                    <div className="flex items-center gap-2" style={{ color: MOSS }}>
+                      <Trophy size={16} />
+                      <p className="text-sm font-black">All lessons complete</p>
                     </div>
-                  );
-                })()}
+                  </div>
+                )}
 
                 {/* mini lesson list */}
                 <div className="p-4 max-h-56 overflow-y-auto space-y-1">
@@ -913,28 +982,36 @@ const CourseDetail = () => {
 
                 {/* left: course info */}
                 <div className="flex-1 min-w-0 pb-10">
-                  <div className="flex items-center gap-2 text-xs mb-5 text-white/50">
+                  <div className="flex items-center gap-2 text-xs mb-5 text-white/50 overflow-x-auto whitespace-nowrap">
                     <Link to="/courses" className="hover:text-white transition">Courses</Link>
-                    <ChevronRight size={12} />
+                    <ChevronRight size={12} className="shrink-0" />
                     {course.category?.name && (
-                      <><span>{course.category.name}</span><ChevronRight size={12} /></>
+                      <><span>{course.category.name}</span><ChevronRight size={12} className="shrink-0" /></>
                     )}
                     <span className="truncate max-w-[200px] text-white/40">{course.title}</span>
                   </div>
 
-                  {course.category?.name && (
-                    <span className="inline-block text-[11px] font-bold border px-3 py-1 rounded-sm mb-4 uppercase tracking-wider"
-                      style={{ borderColor: "rgba(214,90,46,0.4)", color: ORANGE, backgroundColor: "rgba(214,90,46,0.1)" }}>
-                      {course.category.name}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2 mb-4 flex-wrap">
+                    {course.category?.name && (
+                      <span className="inline-block text-[11px] font-bold border px-3 py-1 rounded-sm uppercase tracking-wider"
+                        style={{ borderColor: "rgba(214,90,46,0.4)", color: ORANGE, backgroundColor: "rgba(214,90,46,0.1)" }}>
+                        {course.category.name}
+                      </span>
+                    )}
+                    {isFree && (
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold border px-3 py-1 rounded-sm uppercase tracking-wider"
+                        style={{ borderColor: "rgba(76,122,93,0.4)", color: MOSS, backgroundColor: "rgba(76,122,93,0.12)" }}>
+                        <Sparkles size={11} /> Free course
+                      </span>
+                    )}
+                  </div>
 
                   <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-[1.1] mb-5 text-white" style={{ fontFamily: DISPLAY_FONT }}>
                     {course.title}
                   </h1>
                   <p className="text-base leading-relaxed mb-7 max-w-2xl text-white/70">{course.description}</p>
 
-                  <div className="flex flex-wrap items-center gap-5 text-sm mb-7 text-white/70">
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-3 text-sm mb-7 text-white/70">
                     {course.avgRating ? (
                       <div className="flex items-center gap-2">
                         <span className="font-black text-base" style={{ color: ORANGE }}>{course.avgRating.toFixed(1)}</span>
@@ -990,6 +1067,18 @@ const CourseDetail = () => {
               onShare={handleShare} copied={copied} />
           </div>
 
+          {/* trust strip — reinforces the buy decision right under the fold */}
+          <div className="border-b" style={{ borderColor: LINE, backgroundColor: PAPER }}>
+            <div className="max-w-7xl mx-auto px-4 py-6 lg:pl-4 lg:pr-[26rem] xl:pr-[30rem]">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <StatPill label="Lessons" value={lessons.length} icon={BookOpen} color={BLUE} />
+                <StatPill label="Students" value={fmt(course._count?.enrollments || 0)} icon={Users} color="#9B8CC4" />
+                <StatPill label="Rating" value={course.avgRating ? course.avgRating.toFixed(1) : "New"} icon={Star} color={ORANGE} />
+                <StatPill label="Access" value="Lifetime" icon={InfinityIcon} color={MOSS} />
+              </div>
+            </div>
+          </div>
+
           {/* main content + desktop card spacer */}
           <div className="max-w-7xl mx-auto px-4 py-10">
             <div className="flex flex-col lg:flex-row gap-10">
@@ -1015,8 +1104,13 @@ const CourseDetail = () => {
 
                 {activeTab === "curriculum" && (
                   <div>
-                    <h2 className="text-xl font-black mb-1" style={{ fontFamily: DISPLAY_FONT, color: INK }}>Course curriculum</h2>
-                    <p className="text-xs mb-6" style={{ color: MUTED }}>{lessons.length} lessons · first lesson free preview</p>
+                    <div className="flex items-center justify-between mb-1 flex-wrap gap-2">
+                      <h2 className="text-xl font-black" style={{ fontFamily: DISPLAY_FONT, color: INK }}>Course curriculum</h2>
+                      <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-sm" style={{ backgroundColor: "rgba(76,122,93,0.1)", color: MOSS }}>
+                        1 free preview
+                      </span>
+                    </div>
+                    <p className="text-xs mb-6" style={{ color: MUTED }}>{lessons.length} lessons in this course</p>
                     <div className="space-y-2">
                       {lessons.map((lesson, idx) => {
                         const isFirst = idx === 0;
